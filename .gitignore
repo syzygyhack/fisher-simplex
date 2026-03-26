@@ -1,0 +1,21 @@
+# Virtual environments
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Tool state directories
+.cardinal/
+.avril/
+.claude/
