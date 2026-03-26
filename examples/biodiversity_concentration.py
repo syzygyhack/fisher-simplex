@@ -55,6 +55,11 @@ for name, data in [
     print(f"  {div['recommendation']}")
     print()
 
+# NOTE: High absolute divergence does NOT imply ranking disagreement.
+# Kendall tau measures rank concordance, not value agreement. A community
+# archetype (e.g. geometric series) can have large |Phi - Psi| while the
+# two summaries still rank compositions identically (tau = 1.0).
+
 # ── Binary case: Phi_2 = Psi_2 always ───────────────────────────────────
 print("--- Binary Case (N=2): Exact Coincidence ---")
 binary = fs.dirichlet_community(n=2, m=200, rng=rng)
