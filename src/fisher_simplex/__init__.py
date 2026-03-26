@@ -43,13 +43,31 @@ from fisher_simplex.geometry import (
     sample_near,
     tangent_map,
 )
+from fisher_simplex.analysis import (
+    batch_diagnostic,
+    community_type_discriminant,
+    comparative_index_report,
+    concentration_profile_report,
+    distributional_shift,
+    divergence_analysis,
+    forced_block_regression,
+    full_diagnostic,
+    pairwise_ranking_disagreement,
+    sufficient_statistic_efficiency,
+)
 from fisher_simplex.utils import closure, project_to_simplex, validate_simplex
 
 __all__ = [
+    "batch_diagnostic",
     "bhattacharyya_coefficient",
+    "community_type_discriminant",
+    "comparative_index_report",
+    "concentration_profile_report",
     "binary_fisher_angle",
     "binary_overlap",
     "closure",
+    "distributional_shift",
+    "divergence_analysis",
     "effective_number_herfindahl",
     "effective_number_shannon",
     "fisher_barycenter",
@@ -57,6 +75,8 @@ __all__ = [
     "fisher_distance",
     "fisher_expmap",
     "fisher_geodesic",
+    "forced_block_regression",
+    "full_diagnostic",
     "fisher_kernel",
     "fisher_lift",
     "fisher_logmap",
@@ -73,6 +93,7 @@ __all__ = [
     "kernel_matrix",
     "overlap_divergence",
     "pairwise_fisher_distances",
+    "pairwise_ranking_disagreement",
     "pairwise_hellinger_distances",
     "perturb_simplex",
     "phi",
@@ -84,6 +105,7 @@ __all__ = [
     "sample_near",
     "shannon_entropy",
     "simpson_index",
+    "sufficient_statistic_efficiency",
     "tangent_map",
     "validate_simplex",
 ]
