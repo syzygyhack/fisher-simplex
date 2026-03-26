@@ -4,7 +4,7 @@
 
 ### Distances
 
-Fisher distance is the geodesic distance under the Fisher information metric. Hellinger distance is the Euclidean distance in square-root-transformed coordinates, scaled by 1/sqrt(2).
+Fisher distance is the geodesic distance under the Fisher information metric: `d_F(p, q) = 2 * arccos(sum(sqrt(p_i * q_i)))`. Hellinger distance is the Euclidean distance in square-root-transformed coordinates, scaled by `1/sqrt(2)` so that `d_H in [0, 1]`. The two are related by `d_F = 2 * arccos(1 - d_H^2)`.
 
 ```python
 import numpy as np
@@ -53,15 +53,26 @@ path = fs.geodesic_interpolate(a, b, ts)  # (20, 3)
 
 ### Kernel methods
 
-The Fisher kernel equals the Bhattacharyya coefficient (cosine similarity in amplitude coordinates).
+The Fisher kernel equals the Bhattacharyya coefficient (cosine similarity in amplitude coordinates). The library provides the full kernel family from the paper (§2.7):
 
 ```python
+# Linear Fisher kernel: K(a, b) = B(a, b)
 k = fs.fisher_kernel(a, b)
 K = fs.kernel_matrix(cloud, kind="fisher")  # (50, 50) PSD matrix
 
-# Hellinger RBF kernel
-K_rbf = fs.kernel_matrix(cloud, kind="hellinger_rbf", sigma=0.5)
+# Polynomial Fisher kernel: K_d(a, b) = B(a, b)^d
+k3 = fs.polynomial_fisher_kernel(a, b, d=3)
+K_poly = fs.kernel_matrix(cloud, kind="polynomial_fisher", d=3)
+
+# Fisher RBF kernel: exp(-d_F^2 / (2*sigma^2))
+k_rbf = fs.fisher_rbf_kernel(a, b, sigma=0.5)
+K_frbf = fs.kernel_matrix(cloud, kind="fisher_rbf", sigma=0.5)
+
+# Hellinger RBF kernel: exp(-d_H^2 / sigma^2)
+K_hrbf = fs.kernel_matrix(cloud, kind="hellinger_rbf", sigma=0.5)
 ```
+
+The polynomial kernel `B(p,q)^d` corresponds to the inner product in the degree-d tensor power of amplitude space. The Fisher RBF kernel uses the geodesic distance directly.
 
 ## Overlap diagnostics
 

@@ -16,12 +16,14 @@ from fisher_simplex.geometry import (
     fisher_logmap,
     fisher_mean,
     fisher_pca,
+    fisher_rbf_kernel,
     geodesic_interpolate,
     hellinger_distance,
     kernel_matrix,
     pairwise_fisher_distances,
     pairwise_hellinger_distances,
     perturb_simplex,
+    polynomial_fisher_kernel,
     sample_near,
     tangent_map,
 )
@@ -332,6 +334,129 @@ class TestKernels:
         X = np.array([[0.5, 0.5], [0.3, 0.7]])
         with pytest.raises(ValueError, match="sigma"):
             kernel_matrix(X, kind="hellinger_rbf")
+
+
+# ---------------------------------------------------------------------------
+# Polynomial Fisher kernel (paper §2.7)
+# ---------------------------------------------------------------------------
+
+
+class TestPolynomialFisherKernel:
+    """Tests for polynomial_fisher_kernel and kernel_matrix polynomial_fisher."""
+
+    def test_degree_1_equals_bhattacharyya(self, rng: np.random.Generator) -> None:
+        """K_1(a, b) = B(a, b) for degree 1."""
+        a = random_simplex(5, 50, rng)
+        b = random_simplex(5, 50, rng)
+        for i in range(50):
+            k1 = polynomial_fisher_kernel(a[i], b[i], 1)
+            bc = bhattacharyya_coefficient(a[i], b[i])
+            np.testing.assert_allclose(k1, bc, atol=1e-14)
+
+    def test_degree_2_equals_bc_squared(self, rng: np.random.Generator) -> None:
+        """K_2(a, b) = B(a, b)^2."""
+        a = random_simplex(5, 50, rng)
+        b = random_simplex(5, 50, rng)
+        for i in range(50):
+            k2 = polynomial_fisher_kernel(a[i], b[i], 2)
+            bc = bhattacharyya_coefficient(a[i], b[i])
+            np.testing.assert_allclose(k2, bc**2, atol=1e-14)
+
+    def test_self_kernel_is_one(self) -> None:
+        """K_d(s, s) = B(s,s)^d = 1 for any d."""
+        s = np.array([0.2, 0.3, 0.5])
+        for d in (1, 2, 3, 5):
+            np.testing.assert_allclose(
+                polynomial_fisher_kernel(s, s, d), 1.0, atol=1e-14
+            )
+
+    def test_kernel_matrix_polynomial(self, rng: np.random.Generator) -> None:
+        """kernel_matrix with kind='polynomial_fisher' is PSD."""
+        X = random_simplex(4, 10, rng)
+        K = kernel_matrix(X, kind="polynomial_fisher", d=3)
+        assert K.shape == (10, 10)
+        np.testing.assert_allclose(K, K.T, atol=1e-14)
+        eigvals = np.linalg.eigvalsh(K)
+        assert np.all(eigvals >= -1e-10)
+
+    def test_polynomial_requires_d(self) -> None:
+        """kernel_matrix raises ValueError without d for polynomial_fisher."""
+        X = np.array([[0.5, 0.5], [0.3, 0.7]])
+        with pytest.raises(ValueError, match="d"):
+            kernel_matrix(X, kind="polynomial_fisher")
+
+    def test_invalid_d_raises(self) -> None:
+        """polynomial_fisher_kernel raises on d < 1."""
+        a = np.array([0.5, 0.3, 0.2])
+        b = np.array([0.1, 0.6, 0.3])
+        with pytest.raises(ValueError, match="positive integer"):
+            polynomial_fisher_kernel(a, b, 0)
+        with pytest.raises(ValueError, match="positive integer"):
+            polynomial_fisher_kernel(a, b, -1)
+
+    def test_batch_input(self, rng: np.random.Generator) -> None:
+        """polynomial_fisher_kernel works with (M, N) input."""
+        a = random_simplex(4, 10, rng)
+        b = random_simplex(4, 10, rng)
+        result = polynomial_fisher_kernel(a, b, 3)
+        assert result.shape == (10,)
+
+
+# ---------------------------------------------------------------------------
+# Fisher RBF kernel (paper §2.7)
+# ---------------------------------------------------------------------------
+
+
+class TestFisherRBFKernel:
+    """Tests for fisher_rbf_kernel and kernel_matrix fisher_rbf."""
+
+    def test_self_kernel_is_one(self) -> None:
+        """exp(-0^2/(2*sigma^2)) = 1."""
+        s = np.array([0.2, 0.3, 0.5])
+        np.testing.assert_allclose(fisher_rbf_kernel(s, s, 1.0), 1.0, atol=1e-14)
+
+    def test_formula_matches_manual(self, rng: np.random.Generator) -> None:
+        """fisher_rbf_kernel(a, b, sigma) = exp(-d_F^2 / (2*sigma^2))."""
+        a = random_simplex(5, 50, rng)
+        b = random_simplex(5, 50, rng)
+        sigma = 0.7
+        for i in range(50):
+            k = fisher_rbf_kernel(a[i], b[i], sigma)
+            d_f = fisher_distance(a[i], b[i])
+            expected = np.exp(-(d_f**2) / (2.0 * sigma**2))
+            np.testing.assert_allclose(k, expected, atol=1e-14)
+
+    def test_kernel_matrix_fisher_rbf(self, rng: np.random.Generator) -> None:
+        """kernel_matrix with kind='fisher_rbf' has unit diagonal and is PSD."""
+        X = random_simplex(4, 10, rng)
+        K = kernel_matrix(X, kind="fisher_rbf", sigma=1.0)
+        assert K.shape == (10, 10)
+        np.testing.assert_allclose(K, K.T, atol=1e-14)
+        np.testing.assert_allclose(np.diag(K), 1.0, atol=1e-14)
+        eigvals = np.linalg.eigvalsh(K)
+        assert np.all(eigvals >= -1e-10)
+
+    def test_fisher_rbf_requires_sigma(self) -> None:
+        """kernel_matrix raises ValueError without sigma for fisher_rbf."""
+        X = np.array([[0.5, 0.5], [0.3, 0.7]])
+        with pytest.raises(ValueError, match="sigma"):
+            kernel_matrix(X, kind="fisher_rbf")
+
+    def test_invalid_sigma_raises(self) -> None:
+        """fisher_rbf_kernel raises on sigma <= 0."""
+        a = np.array([0.5, 0.3, 0.2])
+        b = np.array([0.1, 0.6, 0.3])
+        with pytest.raises(ValueError, match="positive"):
+            fisher_rbf_kernel(a, b, 0.0)
+        with pytest.raises(ValueError, match="positive"):
+            fisher_rbf_kernel(a, b, -1.0)
+
+    def test_batch_input(self, rng: np.random.Generator) -> None:
+        """fisher_rbf_kernel works with (M, N) input."""
+        a = random_simplex(4, 10, rng)
+        b = random_simplex(4, 10, rng)
+        result = fisher_rbf_kernel(a, b, 0.5)
+        assert result.shape == (10,)
 
 
 # ---------------------------------------------------------------------------

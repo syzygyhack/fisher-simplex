@@ -54,12 +54,14 @@ from fisher_simplex.geometry import (
     fisher_logmap,
     fisher_mean,
     fisher_pca,
+    fisher_rbf_kernel,
     geodesic_interpolate,
     hellinger_distance,
     kernel_matrix,
     pairwise_fisher_distances,
     pairwise_hellinger_distances,
     perturb_simplex,
+    polynomial_fisher_kernel,
     sample_near,
     tangent_map,
 )
@@ -102,6 +104,8 @@ __all__ = [
     # geometry — kernels
     "fisher_kernel",
     "fisher_cosine",
+    "polynomial_fisher_kernel",
+    "fisher_rbf_kernel",
     "kernel_matrix",
     # geometry — means and barycenters
     "fisher_mean",

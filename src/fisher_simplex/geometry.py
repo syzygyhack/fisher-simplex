@@ -76,6 +76,10 @@ def hellinger_distance(
 ) -> NDArray[np.floating]:
     """Hellinger distance: d_H = (1/sqrt(2)) * ||sqrt(a) - sqrt(b)||_2.
 
+    Uses the normalized convention where ``d_H in [0, 1]`` and
+    ``d_H**2 = 1 - B(a, b)``.  Related to Fisher distance by
+    ``d_F = 2 * arccos(1 - d_H**2)``.
+
     Parameters
     ----------
     a, b : array_like
@@ -193,6 +197,62 @@ def fisher_kernel(
 fisher_cosine = fisher_kernel
 
 
+def polynomial_fisher_kernel(
+    a: ArrayLike,
+    b: ArrayLike,
+    d: int,
+) -> NDArray[np.floating]:
+    """Polynomial Fisher kernel: K_d(a, b) = B(a, b)^d.
+
+    Raises the Bhattacharyya coefficient to integer power *d*, giving a
+    positive-definite kernel for every ``d >= 1``.
+
+    Parameters
+    ----------
+    a, b : array_like
+        Simplex composition(s) of shape ``(N,)`` or ``(M, N)``.
+    d : int
+        Polynomial degree (must be a positive integer).
+
+    Returns
+    -------
+    ndarray
+        Scalar or array of shape ``(M,)``.
+    """
+    if not isinstance(d, (int, np.integer)) or d < 1:
+        raise ValueError(f"d must be a positive integer, got {d!r}.")
+    bc = bhattacharyya_coefficient(a, b)
+    return bc**d
+
+
+def fisher_rbf_kernel(
+    a: ArrayLike,
+    b: ArrayLike,
+    sigma: float,
+) -> NDArray[np.floating]:
+    """Radial basis function kernel in Fisher distance.
+
+    Computes ``exp(-d_F(a, b)^2 / (2 * sigma^2))`` where *d_F* is the
+    Fisher geodesic distance.
+
+    Parameters
+    ----------
+    a, b : array_like
+        Simplex composition(s) of shape ``(N,)`` or ``(M, N)``.
+    sigma : float
+        Bandwidth (must be positive).
+
+    Returns
+    -------
+    ndarray
+        Scalar or array of shape ``(M,)``.
+    """
+    if sigma <= 0:
+        raise ValueError(f"sigma must be positive, got {sigma}.")
+    d = fisher_distance(a, b)
+    return np.exp(-(d**2) / (2.0 * sigma**2))
+
+
 def kernel_matrix(
     X: ArrayLike,
     *,
@@ -205,10 +265,16 @@ def kernel_matrix(
     ----------
     X : array_like
         Simplex compositions of shape ``(M, N)``.
-    kind : {"fisher", "hellinger_rbf"}, optional
+    kind : {"fisher", "polynomial_fisher", "fisher_rbf", "hellinger_rbf"}, optional
         Kernel type. Default ``"fisher"``.
+
+        - ``"fisher"`` — linear Fisher kernel ``B(p, q)`` (degree 1).
+        - ``"polynomial_fisher"`` — ``B(p, q)^d``. Requires ``d``.
+        - ``"fisher_rbf"`` — ``exp(-d_F^2 / (2*sigma^2))``. Requires ``sigma``.
+        - ``"hellinger_rbf"`` — ``exp(-d_H^2 / sigma^2)``. Requires ``sigma``.
+
     **kwargs
-        Additional parameters. ``kind="hellinger_rbf"`` requires ``sigma``.
+        Additional parameters (``d``, ``sigma``) depending on ``kind``.
 
     Returns
     -------
@@ -222,6 +288,25 @@ def kernel_matrix(
         psi = fisher_lift(X)
         K = psi @ psi.T
         return K
+
+    if kind == "polynomial_fisher":
+        d = kwargs.get("d")
+        if d is None:
+            raise ValueError("kind='polynomial_fisher' requires d parameter.")
+        if not isinstance(d, (int, np.integer)) or d < 1:
+            raise ValueError(f"d must be a positive integer, got {d!r}.")
+        psi = fisher_lift(X)
+        bc = psi @ psi.T
+        return bc**d
+
+    if kind == "fisher_rbf":
+        sigma = kwargs.get("sigma")
+        if sigma is None:
+            raise ValueError("kind='fisher_rbf' requires sigma parameter.")
+        if sigma <= 0:
+            raise ValueError(f"sigma must be positive, got {sigma}.")
+        D = pairwise_fisher_distances(X)
+        return np.exp(-(D**2) / (2.0 * sigma**2))
 
     if kind == "hellinger_rbf":
         sigma = kwargs.get("sigma")

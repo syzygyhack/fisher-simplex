@@ -63,7 +63,7 @@ print(f"Mean divergence: {report['mean_divergence']:.6f}")
 | Module | Purpose | Status |
 |--------|---------|--------|
 | `core` | Scalar invariants, overlap families, forced pair, Fisher lift, bridge statistics | Exact |
-| `geometry` | Distances, geodesics, means, tangent maps, PCA, kernels | Exact / exact-derived |
+| `geometry` | Distances, geodesics, means, tangent maps, PCA, kernels (linear, polynomial, RBF) | Exact / exact-derived |
 | `analysis` | Batch diagnostics, divergence reports, forced-block analysis, text reports | Exact-derived / heuristic |
 | `generators` | Synthetic reference ensembles (Dirichlet, broken stick, lognormal, etc.) | Engineering |
 | `utils` | Validation, projection, closure | Engineering |

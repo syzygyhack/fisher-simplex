@@ -310,6 +310,8 @@ Definitions:
 
 The Fisher distance is the canonical geodesic distance induced by the Fisher information metric. Hellinger distance and Bhattacharyya coefficient are exposed as established names in statistics.
 
+Convention note: the Hellinger distance uses the normalized convention where d_H ∈ [0, 1] and d_H² = 1 − BC. The unnormalized convention (d_H² = 2(1 − BC)) is also common in the literature but is not used here. The Fisher-Hellinger relation is d_F = 2 arccos(1 − d_H²).
+
 Pairwise functions return shape `(M, M)` symmetric distance/similarity matrices.
 
 Numerical note: `fisher_distance` clips the argument of `arccos` to `[-1, 1]` to handle floating-point drift.
@@ -319,14 +321,21 @@ Numerical note: `fisher_distance` clips the argument of `arccos` to `[-1, 1]` to
 Status: **exact-derived utility**.
 
 ```python
-fisher_kernel(a, b) -> ndarray           # BC(a, b) = Σ √(a_i b_i)
-fisher_cosine(a, b) -> ndarray           # same value, spherical-language alias
-kernel_matrix(X, *, kind="fisher") -> ndarray  # shape (M, M)
+fisher_kernel(a, b) -> ndarray                    # BC(a, b) = Σ √(a_i b_i)
+fisher_cosine(a, b) -> ndarray                    # same value, spherical-language alias
+polynomial_fisher_kernel(a, b, d) -> ndarray      # BC(a, b)^d for integer d >= 1
+fisher_rbf_kernel(a, b, sigma) -> ndarray         # exp(-d_F^2 / (2*sigma^2))
+kernel_matrix(X, *, kind="fisher") -> ndarray     # shape (M, M)
 ```
 
 The Fisher kernel is the Bhattacharyya coefficient, which is also the cosine similarity in amplitude coordinates. `kernel_matrix` returns shape `(M, M)`.
 
-Available `kind` values: `"fisher"` (default), `"hellinger_rbf"` (exp(−d_H²/σ²), requires `sigma` kwarg).
+Available `kind` values:
+
+* `"fisher"` (default) — linear Fisher kernel B(p, q).
+* `"polynomial_fisher"` — B(p, q)^d. Requires `d` kwarg (positive integer).
+* `"fisher_rbf"` — exp(−d_F²/(2σ²)). Requires `sigma` kwarg.
+* `"hellinger_rbf"` — exp(−d_H²/σ²). Requires `sigma` kwarg.
 
 #### 4.2.3 Means and barycenters
 

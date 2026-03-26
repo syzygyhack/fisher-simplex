@@ -129,6 +129,15 @@ class TestOverlap:
 class TestForcedPair:
     """Tests for q_delta, h3, forced_pair, forced_coordinates."""
 
+    def test_binary_q_delta_identity(self) -> None:
+        """Paper §4.2: Q_Δ(x, 1-x) = 2*(x - 1/2)^2 for 100 values."""
+        xs = np.linspace(0.0, 1.0, 100)
+        for x in xs:
+            s = np.array([x, 1.0 - x])
+            result = q_delta(s)
+            expected = 2.0 * (x - 0.5) ** 2
+            np.testing.assert_allclose(result, expected, atol=1e-14)
+
     def test_forced_pair_returns_tuple(self) -> None:
         s = uniform_simplex(3)
         q, h = forced_pair(s)

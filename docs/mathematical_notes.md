@@ -30,6 +30,36 @@ which is 1/4 of the round metric on S^{N-1} when using the geodesic distance con
 
 This identification is standard in information geometry and statistics (Amari, Cencov, et al.). The library's contribution is not the lift itself but its use as the organizing structure for the full toolkit.
 
+### Distance conventions (known)
+
+**Fisher distance:**
+
+    d_F(p, q) = 2 * arccos(B(p, q))
+
+where `B(p, q) = sum(sqrt(p_i * q_i))` is the Bhattacharyya coefficient. This equals twice the great-circle angle between the amplitude vectors.
+
+**Hellinger distance:**
+
+The library uses the normalized convention:
+
+    d_H(p, q) = (1/sqrt(2)) * ||sqrt(p) - sqrt(q)||_2
+
+This gives `d_H in [0, 1]` and `d_H^2 = 1 - B(p, q)`. The unnormalized convention (used in some references and in the paper) omits the `1/sqrt(2)` factor, giving `d_H^2 = 2(1 - B)`. The Fisher-Hellinger relation in the library's convention is:
+
+    d_F = 2 * arccos(1 - d_H^2)
+
+Both conventions yield the same Fisher distance.
+
+### Kernels (known)
+
+The Fisher amplitude lift induces a family of positive-definite kernels on the simplex:
+
+- **Linear Fisher kernel:** `K_1(p, q) = B(p, q)` — the Bhattacharyya coefficient.
+- **Polynomial Fisher kernel:** `K_d(p, q) = B(p, q)^d` for integer `d >= 1`.
+- **Fisher RBF kernel:** `K_sigma(p, q) = exp(-d_F(p, q)^2 / (2 * sigma^2))`.
+
+These are positive definite because they are induced from positive-definite kernels on the sphere. The polynomial kernels correspond to inner products in the degree-d tensor power of the ambient space; the RBF kernel is a standard radial construction in Fisher geodesic distance.
+
 ---
 
 ## 2. Overlap-family theorem
