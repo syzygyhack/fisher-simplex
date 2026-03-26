@@ -174,7 +174,7 @@ class TestBatchDiagnostic:
                      "herfindahl", "simpson", "shannon"]:
             assert result[key].shape == (m,), f"{key} has wrong shape"
 
-        assert result["fisher_coords"].shape == (m, 2)
+        assert result["fisher_coords"].shape == (m, n)
 
     def test_batch_diagnostic_with_heuristics(self, rng: np.random.Generator) -> None:
         """include_heuristics=True adds qh_ratio."""
@@ -195,7 +195,7 @@ class TestBatchDiagnostic:
                      "herfindahl", "simpson", "shannon"]:
             assert isinstance(result[key], float), f"{key} is not float"
 
-        assert result["fisher_coords"].shape == (2,)
+        assert result["fisher_coords"].shape == (5,)
 
 
 # ---------------------------------------------------------------------------

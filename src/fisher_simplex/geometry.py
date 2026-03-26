@@ -210,6 +210,8 @@ def kernel_matrix(
         sigma = kwargs.get("sigma")
         if sigma is None:
             raise ValueError("kind='hellinger_rbf' requires sigma parameter.")
+        if sigma <= 0:
+            raise ValueError(f"sigma must be positive, got {sigma}.")
         D = pairwise_hellinger_distances(X)
         return np.exp(-(D**2) / sigma**2)
 
@@ -228,8 +230,13 @@ def fisher_mean(
 ) -> NDArray[np.floating]:
     """Extrinsic (projected arithmetic) mean in Fisher-lift amplitude coordinates.
 
-    Approximates but is not identical to the intrinsic Fréchet mean under
-    Fisher geodesic distance.
+    This is the extrinsic (projected arithmetic) mean in Fisher-lift amplitude
+    coordinates. It approximates but is not identical to the intrinsic Fréchet
+    mean under the Fisher geodesic distance. For data concentrated in a small
+    region of the simplex, the two coincide to first order. An iterative
+    intrinsic Fréchet mean solver may be added in a future version.
+
+    Status: exact-derived utility.
 
     Algorithm: lift to amplitude space, compute weighted average, normalize
     to the unit sphere, project back to the simplex.
@@ -366,6 +373,8 @@ def fisher_logmap(
     Maps simplex compositions to tangent vectors at the base point in the
     Fisher-lifted spherical geometry, restricted to the positive orthant.
 
+    Status: exact-derived utility.
+
     Parameters
     ----------
     X : array_like
@@ -377,6 +386,14 @@ def fisher_logmap(
     -------
     ndarray
         Tangent vectors of shape ``(M, N)`` or ``(N,)``.
+
+    Notes
+    -----
+    **Boundary behavior:** When the base point lies on the simplex boundary
+    (has zero components), the effective tangent space dimension drops.
+    The tangent vector has zeros in the corresponding components, and the
+    tangent space is degenerate in those directions. The function remains
+    well-defined but emits a warning. See the mathematical notes for details.
     """
     X = _validated(X)
     single = X.ndim == 1

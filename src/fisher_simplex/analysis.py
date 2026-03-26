@@ -12,6 +12,7 @@ from numpy.typing import ArrayLike, NDArray
 from scipy import stats
 
 from fisher_simplex.core import (
+    fisher_lift,
     forced_coordinates,
     h3,
     herfindahl,
@@ -55,6 +56,8 @@ def batch_diagnostic(
 ) -> dict:
     """Compute all core diagnostics for a batch of simplex compositions.
 
+    Status: exact-derived utility.
+
     Parameters
     ----------
     X : array_like
@@ -69,7 +72,7 @@ def batch_diagnostic(
         Keys: ``"n_components"`` (int), ``"n_compositions"`` (int),
         ``"phi"``, ``"psi"``, ``"divergence"``, ``"q_delta"``, ``"h3"``,
         ``"herfindahl"``, ``"simpson"``, ``"shannon"`` (ndarray shape (M,)),
-        ``"fisher_coords"`` (ndarray shape (M, N)).
+        ``"fisher_coords"`` (ndarray shape (M, N), Fisher-lifted coordinates).
         If *include_heuristics* is ``True``, also ``"qh_ratio"`` (ndarray shape (M,)).
     """
     X = _validated(X)
@@ -87,7 +90,7 @@ def batch_diagnostic(
         "herfindahl": herfindahl(X),
         "simpson": simpson_index(X),
         "shannon": shannon_entropy(X),
-        "fisher_coords": forced_coordinates(X),
+        "fisher_coords": fisher_lift(X),
     }
 
     if include_heuristics:
@@ -100,7 +103,9 @@ def full_diagnostic(s: ArrayLike) -> dict:
     """Compute all core diagnostics for a single simplex composition.
 
     Same keys as :func:`batch_diagnostic` but with scalar values.
-    ``fisher_coords`` is shape ``(N,)`` instead of ``(M, N)``.
+    ``fisher_coords`` is shape ``(N,)`` — Fisher-lifted coordinates.
+
+    Status: exact-derived utility.
 
     Parameters
     ----------
@@ -128,7 +133,7 @@ def full_diagnostic(s: ArrayLike) -> dict:
         "herfindahl": float(herfindahl(s)),
         "simpson": float(simpson_index(s)),
         "shannon": float(shannon_entropy(s)),
-        "fisher_coords": forced_coordinates(s),
+        "fisher_coords": fisher_lift(s),
     }
 
 
