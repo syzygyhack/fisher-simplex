@@ -360,9 +360,7 @@ def selective_frontier(N: int) -> Dict[str, Any]:
         Keys: ``degree``, ``total_dimension``, ``forced_dimension``,
         ``enrichment_dimension``, ``description``.
     """
-    forced = sum(
-        symmetric_even_dimension(N, d) for d in range(0, 8, 2)
-    )
+    forced = sum(symmetric_even_dimension(N, d) for d in range(0, 8, 2))
     enrichment = symmetric_even_dimension(N, 8)
     total = forced + enrichment
 

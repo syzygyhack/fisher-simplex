@@ -63,9 +63,7 @@ class TestRSeries:
         r2_p4 = sufficient_statistic_efficiency(X, target_p4)["r_squared_quadratic"]
         r2_p5 = sufficient_statistic_efficiency(X, target_p5)["r_squared_quadratic"]
 
-        assert r2_p5 < r2_p4, (
-            f"R^2(p5)={r2_p5:.6f} should be < R^2(p4)={r2_p4:.6f}"
-        )
+        assert r2_p5 < r2_p4, f"R^2(p5)={r2_p5:.6f} should be < R^2(p4)={r2_p4:.6f}"
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +93,7 @@ class TestSSeries:
         for i in range(len(ns) - 1):
             assert mean_divs[i] < mean_divs[i + 1], (
                 f"mean|D| at N={ns[i]} ({mean_divs[i]:.6f}) "
-                f"should be < N={ns[i+1]} ({mean_divs[i+1]:.6f})"
+                f"should be < N={ns[i + 1]} ({mean_divs[i + 1]:.6f})"
             )
 
     def test_s2_generator_separation(self) -> None:
@@ -153,10 +151,16 @@ class TestBatchDiagnostic:
         X = random_simplex(5, 20, rng)
         result = batch_diagnostic(X)
         expected_keys = {
-            "n_components", "n_compositions",
-            "phi", "psi", "divergence",
-            "q_delta", "h3",
-            "herfindahl", "simpson", "shannon",
+            "n_components",
+            "n_compositions",
+            "phi",
+            "psi",
+            "divergence",
+            "q_delta",
+            "h3",
+            "herfindahl",
+            "simpson",
+            "shannon",
             "fisher_coords",
         }
         assert set(result.keys()) == expected_keys
@@ -170,8 +174,16 @@ class TestBatchDiagnostic:
         assert result["n_components"] == n
         assert result["n_compositions"] == m
 
-        for key in ["phi", "psi", "divergence", "q_delta", "h3",
-                     "herfindahl", "simpson", "shannon"]:
+        for key in [
+            "phi",
+            "psi",
+            "divergence",
+            "q_delta",
+            "h3",
+            "herfindahl",
+            "simpson",
+            "shannon",
+        ]:
             assert result[key].shape == (m,), f"{key} has wrong shape"
 
         assert result["fisher_coords"].shape == (m, n)
@@ -191,8 +203,16 @@ class TestBatchDiagnostic:
         assert result["n_components"] == 5
         assert result["n_compositions"] == 1
 
-        for key in ["phi", "psi", "divergence", "q_delta", "h3",
-                     "herfindahl", "simpson", "shannon"]:
+        for key in [
+            "phi",
+            "psi",
+            "divergence",
+            "q_delta",
+            "h3",
+            "herfindahl",
+            "simpson",
+            "shannon",
+        ]:
             assert isinstance(result[key], float), f"{key} is not float"
 
         assert result["fisher_coords"].shape == (5,)
@@ -213,8 +233,10 @@ class TestDistributionalShift:
         result = distributional_shift(X_ref, X_test)
 
         expected_keys = {
-            "mean_distance", "cloud_distance",
-            "ref_dispersion", "test_dispersion",
+            "mean_distance",
+            "cloud_distance",
+            "ref_dispersion",
+            "test_dispersion",
         }
         assert set(result.keys()) == expected_keys
 
@@ -288,8 +310,10 @@ class TestSufficientStatisticEfficiency:
         result = sufficient_statistic_efficiency(X, target)
 
         expected_keys = {
-            "r_squared_linear", "r_squared_quadratic",
-            "in_forced_block", "residual_std",
+            "r_squared_linear",
+            "r_squared_quadratic",
+            "in_forced_block",
+            "residual_std",
         }
         assert set(result.keys()) == expected_keys
 
@@ -321,7 +345,8 @@ class TestReports:
         assert "Comparative Index Report" in report
 
     def test_concentration_profile_report_is_string(
-        self, rng: np.random.Generator,
+        self,
+        rng: np.random.Generator,
     ) -> None:
         """concentration_profile_report returns a non-empty string."""
         X = random_simplex(5, 20, rng)
@@ -375,9 +400,13 @@ class TestDivergenceAnalysis:
         X = random_simplex(5, 30, rng)
         result = divergence_analysis(X)
         expected_keys = {
-            "n_components", "mean_divergence", "max_divergence",
-            "divergence_std", "fraction_consequential",
-            "ranking_disagreement", "recommendation",
+            "n_components",
+            "mean_divergence",
+            "max_divergence",
+            "divergence_std",
+            "fraction_consequential",
+            "ranking_disagreement",
+            "recommendation",
         }
         assert set(result.keys()) == expected_keys
 

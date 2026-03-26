@@ -289,9 +289,16 @@ def _build_features(
     if model == "linear":
         return np.column_stack([np.ones_like(q), q, h])
     if model == "quadratic":
-        return np.column_stack([
-            np.ones_like(q), q, h, q**2, q * h, h**2,
-        ])
+        return np.column_stack(
+            [
+                np.ones_like(q),
+                q,
+                h,
+                q**2,
+                q * h,
+                h**2,
+            ]
+        )
     raise ValueError(f"Unknown model: {model!r}")
 
 
@@ -457,8 +464,7 @@ def comparative_index_report(X: ArrayLike) -> str:
         "Overlap Divergence (Phi - Psi):",
         f"  Mean divergence:    {div_info['mean_divergence']:.6f}",
         f"  Max |divergence|:   {div_info['max_divergence']:.6f}",
-        f"  Fraction |D|>0.01: "
-        f"{div_info['fraction_consequential']:.2%}",
+        f"  Fraction |D|>0.01: {div_info['fraction_consequential']:.2%}",
         "",
         f"Ranking agreement (Kendall tau-b): {tau:.4f}",
         "",
@@ -646,14 +652,14 @@ def distributional_shift(
     mean_distance = float(np.mean(np.concatenate([min_dists_ref, min_dists_test])))
 
     # Dispersions
-    ref_dists = np.array([
-        float(fisher_distance(X_ref[i], ref_mean)) for i in range(m_ref)
-    ])
+    ref_dists = np.array(
+        [float(fisher_distance(X_ref[i], ref_mean)) for i in range(m_ref)]
+    )
     ref_dispersion = float(np.mean(ref_dists))
 
-    test_dists = np.array([
-        float(fisher_distance(X_test[i], test_mean)) for i in range(m_test)
-    ])
+    test_dists = np.array(
+        [float(fisher_distance(X_test[i], test_mean)) for i in range(m_test)]
+    )
     test_dispersion = float(np.mean(test_dists))
 
     return {

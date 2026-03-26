@@ -2,6 +2,18 @@
 
 __version__ = "0.3.0"
 
+from fisher_simplex.analysis import (
+    batch_diagnostic,
+    community_type_discriminant,
+    comparative_index_report,
+    concentration_profile_report,
+    distributional_shift,
+    divergence_analysis,
+    forced_block_regression,
+    full_diagnostic,
+    pairwise_ranking_disagreement,
+    sufficient_statistic_efficiency,
+)
 from fisher_simplex.core import (
     binary_fisher_angle,
     binary_overlap,
@@ -23,6 +35,14 @@ from fisher_simplex.core import (
     shannon_entropy,
     simpson_index,
 )
+from fisher_simplex.generators import (
+    broken_stick,
+    dirichlet_community,
+    geometric_series,
+    lognormal_community,
+    market_shares,
+    portfolio_weights,
+)
 from fisher_simplex.geometry import (
     bhattacharyya_coefficient,
     fisher_barycenter,
@@ -43,27 +63,7 @@ from fisher_simplex.geometry import (
     sample_near,
     tangent_map,
 )
-from fisher_simplex.analysis import (
-    batch_diagnostic,
-    community_type_discriminant,
-    comparative_index_report,
-    concentration_profile_report,
-    distributional_shift,
-    divergence_analysis,
-    forced_block_regression,
-    full_diagnostic,
-    pairwise_ranking_disagreement,
-    sufficient_statistic_efficiency,
-)
 from fisher_simplex.utils import closure, project_to_simplex, validate_simplex
-from fisher_simplex.generators import (
-    broken_stick,
-    dirichlet_community,
-    geometric_series,
-    lognormal_community,
-    market_shares,
-    portfolio_weights,
-)
 
 # Optional modules — available via fisher_simplex.frontier, fisher_simplex.harmonic,
 # fisher_simplex.viz. Not re-exported at top level to avoid optional dependency issues.

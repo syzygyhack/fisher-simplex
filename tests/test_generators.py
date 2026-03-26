@@ -28,6 +28,7 @@ ALL_GENERATORS = [
 ]
 
 SHAPE_COMBOS = [(3, 100), (5, 50), (10, 200), (20, 10)]
+_GEN_IDS = [g[0] for g in ALL_GENERATORS]
 
 
 def _assert_valid_simplex(arr: np.ndarray, m: int, n: int) -> None:
@@ -47,7 +48,7 @@ class TestS4ValidSimplex:
     """S4: Every generator returns valid simplex arrays for multiple (n, m)."""
 
     @pytest.mark.parametrize("n, m", SHAPE_COMBOS)
-    @pytest.mark.parametrize("name, gen, kwargs", ALL_GENERATORS, ids=[g[0] for g in ALL_GENERATORS])
+    @pytest.mark.parametrize("name, gen, kwargs", ALL_GENERATORS, ids=_GEN_IDS)
     def test_valid_simplex(
         self,
         name: str,
@@ -69,7 +70,7 @@ class TestS4ValidSimplex:
 class TestReproducibility:
     """Same rng seed produces identical output for every generator."""
 
-    @pytest.mark.parametrize("name, gen, kwargs", ALL_GENERATORS, ids=[g[0] for g in ALL_GENERATORS])
+    @pytest.mark.parametrize("name, gen, kwargs", ALL_GENERATORS, ids=_GEN_IDS)
     def test_reproducible(self, name: str, gen, kwargs: dict) -> None:
         seed = 12345
         a = gen(5, 20, rng=np.random.default_rng(seed), **kwargs)
@@ -85,8 +86,14 @@ class TestReproducibility:
 class TestEdgeCases:
     """Minimum valid dimensions produce correct output."""
 
-    @pytest.mark.parametrize("name, gen, kwargs", ALL_GENERATORS, ids=[g[0] for g in ALL_GENERATORS])
-    def test_n2_m1(self, name: str, gen, kwargs: dict, rng: np.random.Generator) -> None:
+    @pytest.mark.parametrize("name, gen, kwargs", ALL_GENERATORS, ids=_GEN_IDS)
+    def test_n2_m1(
+        self,
+        name: str,
+        gen,
+        kwargs: dict,
+        rng: np.random.Generator,
+    ) -> None:
         result = gen(2, 1, rng=rng, **kwargs)
         _assert_valid_simplex(result, 1, 2)
 
@@ -99,8 +106,14 @@ class TestEdgeCases:
 class TestNoRaise:
     """All generators run without error on standard inputs."""
 
-    @pytest.mark.parametrize("name, gen, kwargs", ALL_GENERATORS, ids=[g[0] for g in ALL_GENERATORS])
-    def test_no_raise(self, name: str, gen, kwargs: dict, rng: np.random.Generator) -> None:
+    @pytest.mark.parametrize("name, gen, kwargs", ALL_GENERATORS, ids=_GEN_IDS)
+    def test_no_raise(
+        self,
+        name: str,
+        gen,
+        kwargs: dict,
+        rng: np.random.Generator,
+    ) -> None:
         gen(5, 50, rng=rng, **kwargs)
 
 
