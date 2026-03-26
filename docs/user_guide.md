@@ -170,6 +170,52 @@ print(f"Ref dispersion: {shift['ref_dispersion']:.4f}")
 print(f"Test dispersion: {shift['test_dispersion']:.4f}")
 ```
 
+## Forced-block regression
+
+Regress a target variable directly onto forced-block coordinates:
+
+```python
+target = np.sum(cloud**4, axis=1)
+reg = fs.forced_block_regression(cloud, target)
+print(f"R^2: {reg['r_squared']:.4f}")
+print(f"Coefficients: {reg['coefficients']}")
+# Also returns: predictions (M,), residuals (M,)
+```
+
+This is a lower-level tool than `sufficient_statistic_efficiency` — it returns the actual regression coefficients and residuals rather than just an R^2 summary.
+
+## Community type discriminant
+
+Classify compositions into structural types based on forced-pair position:
+
+```python
+result = fs.community_type_discriminant(cloud, calibrator="synthetic_v0")
+print(result["labels"])   # array of labels per composition
+print(result["scores"])   # raw scores
+print(result["method"])   # "pair"
+```
+
+> **Warning:** Empirical heuristic. Classification boundaries are data-dependent and should not be treated as universal thresholds. The `"synthetic_v0"` calibrator uses presets tuned on synthetic generators.
+
+## Utilities
+
+Validation, projection, and normalization for simplex data:
+
+```python
+# Validate simplex data (configurable: "never", "warn", "always")
+validated = fs.validate_simplex(data, renormalize="warn")
+
+# Euclidean projection onto the simplex
+projected = fs.project_to_simplex(np.array([0.5, -0.1, 0.8]))
+
+# Proportional normalization (closure)
+counts = np.array([10, 25, 5, 60])
+composition = fs.closure(counts)
+
+# Single-composition diagnostics (scalar version of batch_diagnostic)
+diag = fs.full_diagnostic(composition)
+```
+
 ## Frontier tools (experimental)
 
 The first genuinely free symmetric-even enrichment appears at degree 8. The frontier module exposes degree-8 coordinates orthogonal to (Q_delta, H_3) under the Dirichlet(1) measure.

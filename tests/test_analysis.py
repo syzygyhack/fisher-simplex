@@ -12,6 +12,7 @@ from fisher_simplex.analysis import (
     concentration_profile_report,
     distributional_shift,
     divergence_analysis,
+    forced_block_regression,
     full_diagnostic,
     pairwise_ranking_disagreement,
     sufficient_statistic_efficiency,
@@ -411,6 +412,52 @@ class TestCommunityTypeDiscriminant:
         X = X / X.sum(axis=-1, keepdims=True)
         result = community_type_discriminant(X)
         assert "dispersed" in result["labels"]
+
+
+# ---------------------------------------------------------------------------
+# Forced-block regression tests
+# ---------------------------------------------------------------------------
+
+
+class TestForcedBlockRegression:
+    """Tests for forced_block_regression."""
+
+    def test_returns_correct_keys(self, rng: np.random.Generator) -> None:
+        """forced_block_regression returns expected dict keys."""
+        X = random_simplex(5, 50, rng)
+        target = np.sum(X**2, axis=-1)
+        result = forced_block_regression(X, target)
+        expected_keys = {
+            "coefficients",
+            "predictions",
+            "residuals",
+            "r_squared",
+        }
+        assert set(result.keys()) == expected_keys
+
+    def test_shapes(self, rng: np.random.Generator) -> None:
+        """Predictions and residuals have shape (M,)."""
+        m = 50
+        X = random_simplex(5, m, rng)
+        target = np.sum(X**2, axis=-1)
+        result = forced_block_regression(X, target)
+        assert result["predictions"].shape == (m,)
+        assert result["residuals"].shape == (m,)
+        assert isinstance(result["r_squared"], float)
+
+    def test_hhi_high_r_squared(self, rng: np.random.Generator) -> None:
+        """HHI = sum(s^2) is well-predicted by (Q, H) quadratic fit."""
+        X = random_simplex(5, 200, rng)
+        target = np.sum(X**2, axis=-1)
+        result = forced_block_regression(X, target)
+        assert result["r_squared"] > 0.999
+
+    def test_unknown_basis_raises(self, rng: np.random.Generator) -> None:
+        """Unknown basis raises ValueError."""
+        X = random_simplex(5, 20, rng)
+        target = np.sum(X**2, axis=-1)
+        with pytest.raises(ValueError, match="Unknown basis"):
+            forced_block_regression(X, target, basis="triple")
 
 
 # ---------------------------------------------------------------------------

@@ -4,6 +4,8 @@ A boundary-safe information-geometry toolkit for probability-simplex data, built
 
 Use it when your data are normalized nonnegative vectors and you need principled distances, means, interpolation, and low-order structural summaries without ad hoc zero handling.
 
+Need a different language than Python? `fisher-simplex` maintains a [SPEC.md](/SPEC.md) in order to serve as a ghost library. Clone the repository as reference and point your favorite coding agent at the specification to reproduce with your unique requirements met.
+
 ## Positioning
 
 **Primarily a geometry toolkit** — exact Fisher/Hellinger distances, means, geodesics, tangent PCA, and kernel methods on the probability simplex.
@@ -68,6 +70,19 @@ print(f"Mean divergence: {report['mean_divergence']:.6f}")
 | `frontier` | Degree-8 enrichment coordinates and residual diagnostics | Experimental |
 | `harmonic` | Low-degree symmetric-even harmonic tools | Experimental |
 | `viz` | Matplotlib plotting utilities (requires `matplotlib`) | Optional |
+
+## Examples
+
+The `examples/` directory contains runnable scripts demonstrating domain-specific workflows:
+
+| Example | Domain | Demonstrates |
+|---------|--------|-------------|
+| `basic_geometry.py` | General | Fisher distance, mean, geodesics, tangent PCA, kernels |
+| `portfolio_rebalancing.py` | Finance | Fisher vs Euclidean distance, geodesic rebalancing, HHI shape correction |
+| `biodiversity_concentration.py` | Ecology / Economics | Overlap diagnostics, forced-pair invariants, concentration profiling |
+| `distributional_shift.py` | Machine learning | Shift detection between classifier output clouds |
+| `sparse_zeros.py` | Microbiome | Boundary-safe geometry on zero-inflated compositional data |
+| `frontier_enrichment.py` | Research | Degree-8 enrichment coordinates, residual diagnostics |
 
 ## Documentation
 

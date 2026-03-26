@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from fisher_simplex.harmonic import (
     _partition_count,
     enrichment_space,
+    filtration_decomposition,
+    project_to_degree,
     selective_frontier,
     symmetric_even_basis,
     symmetric_even_dimension,
@@ -204,3 +207,22 @@ class TestEnrichmentSpace:
         basis = enrichment_space(5, 8)
         for elem in basis:
             assert elem["degree"] == 8
+
+
+# ---------------------------------------------------------------------------
+# Experimental stubs
+# ---------------------------------------------------------------------------
+
+
+class TestExperimentalStubs:
+    """project_to_degree and filtration_decomposition raise."""
+
+    def test_project_to_degree_raises(self) -> None:
+        f = np.ones(10)
+        with pytest.raises(NotImplementedError):
+            project_to_degree(f, 4)
+
+    def test_filtration_decomposition_raises(self) -> None:
+        f = np.ones(10)
+        with pytest.raises(NotImplementedError):
+            filtration_decomposition(f)

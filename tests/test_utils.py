@@ -179,3 +179,15 @@ class TestClosure:
         x = np.array([7.0, 3.0, 11.0, 2.0])
         result = closure(x)
         np.testing.assert_allclose(result.sum(), 1.0)
+
+    def test_zero_sum_raises(self) -> None:
+        """All-zero input raises ValueError."""
+        x = np.array([0.0, 0.0, 0.0])
+        with pytest.raises(ValueError, match="zero"):
+            closure(x)
+
+    def test_zero_sum_batch_raises(self) -> None:
+        """Batch with a zero-sum row raises ValueError."""
+        x = np.array([[1.0, 2.0], [0.0, 0.0]])
+        with pytest.raises(ValueError, match="zero"):
+            closure(x)
