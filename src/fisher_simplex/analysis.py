@@ -166,14 +166,13 @@ def pairwise_ranking_disagreement(
     m = len(a)
     n_pairs = m * (m - 1) // 2
 
-    # Count disagreements: pairs where ordering differs
-    n_disagreements = 0
-    for i in range(m):
-        for j in range(i + 1, m):
-            sign_a = np.sign(a[i] - a[j])
-            sign_b = np.sign(b[i] - b[j])
-            if sign_a != 0 and sign_b != 0 and sign_a != sign_b:
-                n_disagreements += 1
+    # Count disagreements vectorized: pairs where ordering differs
+    # Upper-triangle indices give all (i, j) pairs with i < j
+    ii, jj = np.triu_indices(m, k=1)
+    sign_a = np.sign(a[ii] - a[jj])
+    sign_b = np.sign(b[ii] - b[jj])
+    # Disagreement: both non-tied and signs differ
+    n_disagreements = int(np.sum((sign_a != 0) & (sign_b != 0) & (sign_a != sign_b)))
 
     disagreement_rate = n_disagreements / n_pairs if n_pairs > 0 else 0.0
 
@@ -341,6 +340,11 @@ def sufficient_statistic_efficiency(
         ``"in_forced_block"`` (bool, ``R^2_quad > 0.999``),
         ``"residual_std"`` (float).
     """
+    if model not in ("linear", "quadratic"):
+        raise ValueError(
+            f"Unknown model: {model!r}. Choose from 'linear', 'quadratic'."
+        )
+
     X = _validated(X)
     X = _ensure_2d(X)
     target = np.asarray(target, dtype=np.float64)
@@ -576,11 +580,14 @@ def community_type_discriminant(
     elif calibrator is not None:
         raise ValueError(f"Unknown calibrator: {calibrator!r}")
 
+    # Q_delta >= 0 always (Cauchy-Schwarz); "dispersed" means near-uniform
+    # (low Q_delta), not negative Q_delta.
+    q_low = q_thresh * 0.1
     labels = np.empty(m, dtype=object)
     for i in range(m):
         if q_vals[i] > q_thresh and h_vals[i] > h_thresh:
             labels[i] = "concentrated"
-        elif q_vals[i] < -q_thresh * 0.5:
+        elif q_vals[i] < q_low:
             labels[i] = "dispersed"
         else:
             labels[i] = "moderate"
@@ -624,6 +631,11 @@ def distributional_shift(
         distance from ref points to ref mean), ``"test_dispersion"``
         (float, same for test).
     """
+    if summary != "mean":
+        raise ValueError(
+            f"Unknown summary: {summary!r}. Currently only 'mean' is supported."
+        )
+
     X_ref = _validated(X_ref)
     X_test = _validated(X_test)
     X_ref = _ensure_2d(X_ref)
@@ -636,31 +648,26 @@ def distributional_shift(
     # Cloud distance: Fisher distance between means
     cloud_dist = float(fisher_distance(ref_mean, test_mean))
 
-    # Pairwise Fisher distances between ref and test for nearest-pair matching
-    m_ref = X_ref.shape[0]
-    m_test = X_test.shape[0]
-
-    # Build cross-distance matrix
-    cross_dists = np.zeros((m_ref, m_test))
-    for i in range(m_ref):
-        for j in range(m_test):
-            cross_dists[i, j] = fisher_distance(X_ref[i], X_test[j])
+    # Vectorized cross-distance matrix via amplitude inner products
+    psi_ref = fisher_lift(X_ref)    # (m_ref, N)
+    psi_test = fisher_lift(X_test)  # (m_test, N)
+    bc_cross = np.clip(psi_ref @ psi_test.T, -1.0, 1.0)  # (m_ref, m_test)
+    cross_dists = 2.0 * np.arccos(bc_cross)
 
     # Mean distance between nearest pairs (from ref to nearest test)
     min_dists_ref = np.min(cross_dists, axis=1)
     min_dists_test = np.min(cross_dists, axis=0)
     mean_distance = float(np.mean(np.concatenate([min_dists_ref, min_dists_test])))
 
-    # Dispersions
-    ref_dists = np.array(
-        [float(fisher_distance(X_ref[i], ref_mean)) for i in range(m_ref)]
-    )
-    ref_dispersion = float(np.mean(ref_dists))
+    # Vectorized dispersions via amplitude inner products with mean
+    psi_ref_mean = fisher_lift(ref_mean)    # (N,)
+    psi_test_mean = fisher_lift(test_mean)  # (N,)
 
-    test_dists = np.array(
-        [float(fisher_distance(X_test[i], test_mean)) for i in range(m_test)]
-    )
-    test_dispersion = float(np.mean(test_dists))
+    bc_ref = np.clip(psi_ref @ psi_ref_mean, -1.0, 1.0)   # (m_ref,)
+    ref_dispersion = float(np.mean(2.0 * np.arccos(bc_ref)))
+
+    bc_test = np.clip(psi_test @ psi_test_mean, -1.0, 1.0)  # (m_test,)
+    test_dispersion = float(np.mean(2.0 * np.arccos(bc_test)))
 
     return {
         "mean_distance": mean_distance,

@@ -292,6 +292,16 @@ class TestUtilityGeometry:
         np.testing.assert_allclose(result.sum(), 1.0, atol=1e-12)
         assert np.all(result >= 0)
 
+    def test_perturb_simplex_euclidean_large_eps(self) -> None:
+        """perturb_simplex with huge eps still returns valid simplex."""
+        s = np.array([0.5, 0.5])
+        rng = np.random.default_rng(5)
+        result = perturb_simplex(s, eps=2.0, mode="euclidean", rng=rng)
+        assert result.shape == (2,)
+        assert np.all(np.isfinite(result))
+        np.testing.assert_allclose(result.sum(), 1.0, atol=1e-12)
+        assert np.all(result >= 0)
+
 
 # ---------------------------------------------------------------------------
 # Kernels — extras
@@ -400,3 +410,50 @@ class TestMeanExtras:
         m = fisher_mean(X, weights=weights)
         np.testing.assert_allclose(m.sum(), 1.0, atol=1e-12)
         assert np.all(m >= -1e-15)
+
+    def test_fisher_mean_zero_weights_raises(self) -> None:
+        """All-zero weights raise ValueError."""
+        X = np.array([[0.5, 0.5], [0.3, 0.7]])
+        with pytest.raises(ValueError, match="[Ww]eight"):
+            fisher_mean(X, weights=np.array([0.0, 0.0]))
+
+    def test_fisher_mean_negative_weights_raises(self) -> None:
+        """Negative weights raise ValueError."""
+        X = np.array([[0.5, 0.5], [0.3, 0.7]])
+        with pytest.raises(ValueError, match="[Ww]eight"):
+            fisher_mean(X, weights=np.array([-1.0, 2.0]))
+
+    def test_fisher_mean_wrong_length_weights_raises(self) -> None:
+        """Wrong-length weights raise ValueError."""
+        X = np.array([[0.5, 0.5], [0.3, 0.7]])
+        with pytest.raises(ValueError, match="[Ww]eight"):
+            fisher_mean(X, weights=np.array([1.0]))
+
+
+# ---------------------------------------------------------------------------
+# 1D input rejection (batch APIs require 2D)
+# ---------------------------------------------------------------------------
+
+
+class TestBatchInputValidation:
+    """Batch geometry APIs must reject 1D input with a clear error."""
+
+    def test_pairwise_fisher_distances_rejects_1d(self) -> None:
+        x = np.array([0.2, 0.3, 0.5])
+        with pytest.raises(ValueError, match="batch"):
+            pairwise_fisher_distances(x)
+
+    def test_pairwise_hellinger_distances_rejects_1d(self) -> None:
+        x = np.array([0.2, 0.3, 0.5])
+        with pytest.raises(ValueError, match="batch"):
+            pairwise_hellinger_distances(x)
+
+    def test_kernel_matrix_rejects_1d(self) -> None:
+        x = np.array([0.2, 0.3, 0.5])
+        with pytest.raises(ValueError, match="batch"):
+            kernel_matrix(x)
+
+    def test_fisher_mean_rejects_1d(self) -> None:
+        x = np.array([0.2, 0.3, 0.5])
+        with pytest.raises(ValueError, match="batch"):
+            fisher_mean(x)

@@ -284,6 +284,11 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+dev = [
+    { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pytest", version = "9.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "ruff" },
+]
 viz = [
     { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "matplotlib", version = "3.10.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -300,9 +305,11 @@ dev = [
 requires-dist = [
     { name = "matplotlib", marker = "extra == 'viz'", specifier = ">=3.5" },
     { name = "numpy", specifier = ">=1.21" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "scipy", specifier = ">=1.7" },
 ]
-provides-extras = ["viz"]
+provides-extras = ["viz", "dev"]
 
 [package.metadata.requires-dev]
 dev = [

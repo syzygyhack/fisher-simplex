@@ -63,6 +63,14 @@ def validate_simplex(
         x = np.where((x < 0) & (x >= -tol), 0.0, x)
 
     sums = x.sum(axis=axis, keepdims=True)
+
+    # Guard against zero-sum vectors (all-zero input)
+    if np.any(sums == 0):
+        raise ValueError(
+            "Input contains rows summing to zero. "
+            "Cannot form a valid simplex composition."
+        )
+
     drift = np.abs(sums - 1.0)
 
     if renormalize == "never":
@@ -148,6 +156,16 @@ def closure(x: ArrayLike) -> NDArray[np.floating]:
     -------
     ndarray
         Normalized array summing to 1 along the last axis.
+
+    Raises
+    ------
+    ValueError
+        If any row sums to zero.
     """
     x = np.asarray(x, dtype=np.float64)
-    return x / x.sum(axis=-1, keepdims=True)
+    sums = x.sum(axis=-1, keepdims=True)
+    if np.any(sums == 0):
+        raise ValueError(
+            "Input contains rows summing to zero. Cannot normalize."
+        )
+    return x / sums

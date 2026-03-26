@@ -13,7 +13,11 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from fisher_simplex.core import fisher_lift, fisher_project
-from fisher_simplex.utils import validate_simplex
+from fisher_simplex.utils import (  # noqa: F401
+    closure,
+    project_to_simplex,
+    validate_simplex,
+)
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -23,6 +27,16 @@ from fisher_simplex.utils import validate_simplex
 def _validated(x: ArrayLike) -> NDArray[np.floating]:
     """Validate and return a simplex array."""
     return validate_simplex(x, renormalize="warn")
+
+
+def _require_batch(X: NDArray, name: str) -> NDArray:
+    """Ensure *X* is 2-D; raise ValueError on 1-D input."""
+    if X.ndim < 2:
+        raise ValueError(
+            f"{name} requires a batch of compositions with shape (M, N), "
+            f"got shape {X.shape}. Pass a single composition as X[np.newaxis, :]."
+        )
+    return X
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +128,7 @@ def pairwise_fisher_distances(X: ArrayLike) -> NDArray[np.floating]:
         Shape ``(M, M)`` symmetric matrix with zero diagonal.
     """
     X = _validated(X)
+    X = _require_batch(X, "pairwise_fisher_distances")
     psi = fisher_lift(X)
     # BC matrix via matrix multiply
     bc = psi @ psi.T
@@ -139,6 +154,7 @@ def pairwise_hellinger_distances(X: ArrayLike) -> NDArray[np.floating]:
         Shape ``(M, M)`` symmetric matrix with zero diagonal.
     """
     X = _validated(X)
+    X = _require_batch(X, "pairwise_hellinger_distances")
     sqrt_X = np.sqrt(X)
     m = X.shape[0]
     D = np.zeros((m, m))
@@ -200,6 +216,7 @@ def kernel_matrix(
         Shape ``(M, M)`` symmetric positive semidefinite matrix.
     """
     X = _validated(X)
+    X = _require_batch(X, "kernel_matrix")
 
     if kind == "fisher":
         psi = fisher_lift(X)
@@ -254,11 +271,22 @@ def fisher_mean(
         Shape ``(N,)`` simplex composition.
     """
     X = _validated(X)
+    X = _require_batch(X, "fisher_mean")
     psi = fisher_lift(X)
 
     if weights is not None:
         w = np.asarray(weights, dtype=np.float64)
-        w = w / w.sum()
+        m = X.shape[0]
+        if w.shape != (m,):
+            raise ValueError(
+                f"Weights must have shape ({m},), got {w.shape}."
+            )
+        if np.any(w < 0):
+            raise ValueError("Weights must be nonnegative.")
+        w_sum = w.sum()
+        if w_sum <= 0:
+            raise ValueError("Weights must sum to a positive value.")
+        w = w / w_sum
         avg = np.einsum("i,ij->j", w, psi)
     else:
         avg = psi.mean(axis=0)
@@ -670,7 +698,11 @@ def perturb_simplex(
         noise = rng.standard_normal(n) * eps
         perturbed = s + noise
         perturbed = np.maximum(perturbed, 0.0)
-        perturbed = perturbed / perturbed.sum()
+        total = perturbed.sum()
+        if total < 1e-30:
+            # Noise overwhelmed the signal; return original point
+            return s.copy()
+        perturbed = perturbed / total
         return perturbed
 
     raise ValueError(f"Unknown mode: {mode!r}")

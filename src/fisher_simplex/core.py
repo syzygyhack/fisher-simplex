@@ -144,7 +144,16 @@ def overlap_divergence(s: ArrayLike) -> NDArray[np.floating]:
         Scalar or array of shape ``(M,)``.
     """
     s = _validated(s)
-    return phi(s) - psi_overlap(s)
+    n = _n(s)
+    # Inline phi
+    hhi = np.sum(s**2, axis=-1)
+    phi_val = (n / (n - 1)) * (1.0 - hhi)
+    # Inline psi
+    has_zero = np.any(s == 0, axis=-1)
+    safe_s = np.where(s > 0, s, 1.0)
+    log_psi = n * np.log(n) + np.sum(np.log(safe_s), axis=-1)
+    psi_val = np.where(has_zero, 0.0, np.exp(log_psi))
+    return phi_val - psi_val
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +213,12 @@ def forced_pair(s: ArrayLike) -> Tuple[NDArray[np.floating], NDArray[np.floating
         ``(q_delta(s), h3(s))``.
     """
     s = _validated(s)
-    return q_delta(s), h3(s)
+    n = _n(s)
+    s2 = np.sum(s**2, axis=-1)
+    s3 = np.sum(s**3, axis=-1)
+    q = s2 - 1.0 / n
+    h = s3 - (3.0 / (n + 2)) * s2 + 2.0 / (n * (n + 2))
+    return q, h
 
 
 def forced_coordinates(s: ArrayLike) -> NDArray[np.floating]:
@@ -221,8 +235,11 @@ def forced_coordinates(s: ArrayLike) -> NDArray[np.floating]:
         Shape ``(2,)`` for single input or ``(M, 2)`` for batch.
     """
     s = _validated(s)
-    q = q_delta(s)
-    h = h3(s)
+    n = _n(s)
+    s2 = np.sum(s**2, axis=-1)
+    s3 = np.sum(s**3, axis=-1)
+    q = s2 - 1.0 / n
+    h = s3 - (3.0 / (n + 2)) * s2 + 2.0 / (n * (n + 2))
     return np.stack([q, h], axis=-1)
 
 

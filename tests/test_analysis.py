@@ -260,6 +260,13 @@ class TestDistributionalShift:
         assert result["cloud_distance"] < 1e-7
         assert result["mean_distance"] < 1e-7
 
+    def test_invalid_summary_raises(self, rng: np.random.Generator) -> None:
+        """Unknown summary parameter raises ValueError."""
+        X_ref = random_simplex(5, 10, rng)
+        X_test = random_simplex(5, 10, rng)
+        with pytest.raises(ValueError, match="Unknown summary"):
+            distributional_shift(X_ref, X_test, summary="median")
+
 
 # ---------------------------------------------------------------------------
 # Pairwise ranking disagreement tests
@@ -327,6 +334,13 @@ class TestSufficientStatisticEfficiency:
         result = sufficient_statistic_efficiency(X, target)
         assert result["r_squared_linear"] > 0.999
 
+    def test_invalid_model_raises(self, rng: np.random.Generator) -> None:
+        """Unknown model parameter raises ValueError."""
+        X = random_simplex(5, 50, rng)
+        target = np.sum(X**2, axis=-1)
+        with pytest.raises(ValueError, match="Unknown model"):
+            sufficient_statistic_efficiency(X, target, model="cubic")
+
 
 # ---------------------------------------------------------------------------
 # Report tests
@@ -385,6 +399,18 @@ class TestCommunityTypeDiscriminant:
         X = random_simplex(5, 10, rng)
         with pytest.raises(ValueError, match="Unknown calibrator"):
             community_type_discriminant(X, calibrator="nonsense")
+
+    def test_dispersed_label_reachable(self) -> None:
+        """Near-uniform compositions should receive 'dispersed' label."""
+        n = 5
+        # Near-uniform compositions have very low Q_delta
+        X = np.full((10, n), 1.0 / n)
+        # Add tiny noise to avoid exact uniformity triggering issues
+        rng = np.random.default_rng(42)
+        X = X + rng.normal(0, 1e-6, X.shape)
+        X = X / X.sum(axis=-1, keepdims=True)
+        result = community_type_discriminant(X)
+        assert "dispersed" in result["labels"]
 
 
 # ---------------------------------------------------------------------------

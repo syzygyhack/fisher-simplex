@@ -102,6 +102,19 @@ class TestValidateSimplexEdgeCases:
         assert result.ndim == 2
         assert result.shape == (2, 2)
 
+    def test_zero_sum_raises(self) -> None:
+        """All-zero input raises ValueError, not NaN."""
+        x = np.array([0.0, 0.0, 0.0])
+        for mode in ("never", "warn", "always"):
+            with pytest.raises(ValueError, match="zero"):
+                validate_simplex(x, renormalize=mode)
+
+    def test_zero_sum_batch_raises(self) -> None:
+        """Batch with a zero-sum row raises ValueError."""
+        x = np.array([[0.5, 0.5], [0.0, 0.0]])
+        with pytest.raises(ValueError, match="zero"):
+            validate_simplex(x, renormalize="warn")
+
 
 # ---------------------------------------------------------------------------
 # project_to_simplex
