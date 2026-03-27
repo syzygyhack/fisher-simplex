@@ -40,13 +40,13 @@ b = np.array([0.1, 0.6, 0.3])
 d = fs.fisher_distance(a, b)
 print(f"Fisher distance: {d:.4f}")
 
-# Fisher mean of a cloud
+# Extrinsic Fisher mean of a cloud
 cloud = np.array([
     [0.5, 0.3, 0.2],
     [0.1, 0.6, 0.3],
     [0.3, 0.3, 0.4],
 ])
-mean = fs.fisher_mean(cloud)
+mean = fs.fisher_mean(cloud)  # extrinsic projected mean
 print(f"Fisher mean: {mean}")
 
 # Forced coordinates (Q_delta, H_3)

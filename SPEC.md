@@ -103,7 +103,7 @@ This is a small positive value, not zero. The formula is the natural degree-6 ha
 
 The first genuinely free symmetric-even enrichment appears at degree 8. Up to degree 6, the nonconstant sector is forced. At degree 8, a 2-dimensional enrichment space appears.
 
-The default degree-8 enrichment basis is orthogonal to (Q_Δ, H_3) under the Dirichlet(1) (uniform) measure on the simplex and documented with explicit polynomial expressions.
+The 2-dimensional enrichment *subspace* is canonical (determined by the representation theory). Any specific basis for it depends on the orthogonalization convention. The library's default E8_1 and E8_2 are orthogonal to (Q_Δ, H_3) under the Dirichlet(1) (uniform) measure on the simplex and documented with explicit polynomial expressions.
 
 This motivates the package's **experimental frontier tools**, which expose degree-8 enrichment coordinates in addition to the forced pair.
 

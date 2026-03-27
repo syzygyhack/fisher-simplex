@@ -226,3 +226,63 @@ class TestExperimentalStubs:
         f = np.ones(10)
         with pytest.raises(NotImplementedError):
             filtration_decomposition(f)
+
+
+# ---------------------------------------------------------------------------
+# Cross-module consistency: harmonic spanning set vs frontier orthogonalization
+# ---------------------------------------------------------------------------
+
+
+class TestHarmonicFrontierConsistency:
+    """Verify that harmonic raw monomials span the same subspace as
+    the orthogonalized frontier directions."""
+
+    def test_enrichment_space_is_raw_monomials(self) -> None:
+        """enrichment_space returns raw {p_4, p_2^2}, not orthogonalized."""
+        basis = enrichment_space(5, 8)
+        assert len(basis) == 2
+        # First element is p_4
+        assert basis[0]["coefficients"] == {(4,): 1.0}
+        # Second element is p_2^2
+        assert basis[1]["coefficients"] == {(2, 2): 1.0}
+
+    def test_enrichment_descriptions_say_not_orthogonalized(self) -> None:
+        """Descriptions must state these are not orthogonalized."""
+        basis = enrichment_space(5, 8)
+        for elem in basis:
+            assert "Not orthogonalized" in elem["description"]
+
+    def test_frontier_e8_orthogonal_to_forced_block(self) -> None:
+        """frontier E8 coordinates are orthogonal to Q_delta and H_3
+        under Dirichlet(1) — confirming frontier does the orthogonalization
+        that harmonic does not."""
+        from fisher_simplex.core import h3, q_delta
+        from fisher_simplex.frontier import frontier8_coordinates
+
+        rng = np.random.default_rng(seed=9999)
+        samples = rng.dirichlet(np.ones(5), size=10000)
+        coords = frontier8_coordinates(samples)
+        qd = coords[:, 0]
+        h = coords[:, 1]
+        e8_1 = coords[:, 2]
+        e8_2 = coords[:, 3]
+
+        # E8 directions should be uncorrelated with forced-block coords
+        np.testing.assert_allclose(np.mean(e8_1 * qd), 0.0, atol=0.05)
+        np.testing.assert_allclose(np.mean(e8_2 * qd), 0.0, atol=0.05)
+        np.testing.assert_allclose(np.mean(e8_1 * h), 0.0, atol=0.05)
+        np.testing.assert_allclose(np.mean(e8_2 * h), 0.0, atol=0.05)
+
+    def test_raw_p4_not_orthogonal_to_forced(self) -> None:
+        """Raw p_4 (harmonic basis) is NOT orthogonal to Q_delta,
+        confirming the harmonic module correctly disclaims orthogonality."""
+        from fisher_simplex.core import q_delta
+
+        rng = np.random.default_rng(seed=8888)
+        samples = rng.dirichlet(np.ones(5), size=10000)
+        p4 = np.sum(samples**4, axis=-1)
+        qd = q_delta(samples)
+
+        # Raw p_4 correlates strongly with Q_delta
+        covariance = np.abs(np.mean(p4 * qd) - np.mean(p4) * np.mean(qd))
+        assert covariance > 1e-4  # non-trivial correlation

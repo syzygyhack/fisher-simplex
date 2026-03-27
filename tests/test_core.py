@@ -315,3 +315,45 @@ class TestBatchShapes:
         samples = random_simplex(4, 10, rng)
         result = qh_ratio(samples)
         assert result.shape == (10,)
+
+
+# ---------------------------------------------------------------------------
+# fisher_project contract validation
+# ---------------------------------------------------------------------------
+
+
+class TestFisherProjectContract:
+    """fisher_project must enforce nonneg and warn on non-unit-norm."""
+
+    def test_rejects_negative_amplitudes(self) -> None:
+        """Negative elements raise ValueError."""
+        psi = np.array([-0.5, 0.5, 0.707])
+        with pytest.raises(ValueError, match="nonnegative"):
+            fisher_project(psi)
+
+    def test_warns_non_unit_norm(self) -> None:
+        """Non-unit-norm input emits UserWarning."""
+        psi = np.array([0.5, 0.5, 0.5])  # norm ~ 0.866
+        with pytest.warns(UserWarning, match="non-unit-norm"):
+            fisher_project(psi)
+
+    def test_accepts_valid_amplitudes(self) -> None:
+        """Valid nonneg unit-norm input returns psi^2 without warning."""
+        import warnings
+
+        psi = np.array([0.5, 0.5, np.sqrt(0.5)])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            result = fisher_project(psi)
+        np.testing.assert_allclose(result, psi**2, atol=1e-14)
+
+    def test_roundtrip_no_warning(self, rng: np.random.Generator) -> None:
+        """fisher_project(fisher_lift(s)) does not warn."""
+        import warnings
+
+        samples = random_simplex(5, 20, rng)
+        lifted = fisher_lift(samples)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            result = fisher_project(lifted)
+        np.testing.assert_allclose(result, samples, atol=1e-14)

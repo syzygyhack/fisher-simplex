@@ -127,11 +127,18 @@ coords = fs.forced_coordinates(cloud)  # (M, 2) array of [Q, H]
 Test whether a target observable lies in the forced block:
 
 ```python
-target = np.sum(cloud**4, axis=1)  # p_4 should be in the forced block
+# p_2 (Herfindahl) is in the forced block — should show R^2 ~ 1
+target = np.sum(cloud**2, axis=1)
 result = fs.sufficient_statistic_efficiency(cloud, target)
 print(f"R^2 linear: {result['r_squared_linear']:.4f}")
 print(f"R^2 quadratic: {result['r_squared_quadratic']:.4f}")
 print(f"In forced block: {result['in_forced_block']}")
+
+# p_4 has a degree-8 enrichment component beyond the forced block —
+# R^2 will be high (p_4 correlates with p_2) but not perfect
+target_p4 = np.sum(cloud**4, axis=1)
+result_p4 = fs.sufficient_statistic_efficiency(cloud, target_p4)
+print(f"p_4 in forced block: {result_p4['in_forced_block']}")  # may be False
 ```
 
 ## Tangent PCA

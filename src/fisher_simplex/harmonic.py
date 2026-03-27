@@ -155,16 +155,20 @@ _PRECOMPUTED_BASES: Dict[int, List[Dict[str, Any]]] = {
             "coefficients": {(4,): 1.0},
             "degree": 8,
             "description": (
-                "E8_1: degree-8 enrichment basis element (p₄ component). "
-                "Orthogonal to forced block under Dirichlet(1). Status: exact."
+                "Raw degree-8 monomial p₄ = Σs_i⁴. Spans the degree-8 "
+                "enrichment subspace together with p₂². Not orthogonalized "
+                "against the forced block; use frontier.frontier8_coordinates "
+                "for Dirichlet(1)-orthogonal directions. Status: exact."
             ),
         },
         {
             "coefficients": {(2, 2): 1.0},
             "degree": 8,
             "description": (
-                "E8_2: degree-8 enrichment basis element (p₂² component). "
-                "Orthogonal to forced block under Dirichlet(1). Status: exact."
+                "Raw degree-8 monomial p₂² = (Σs_i²)². Spans the degree-8 "
+                "enrichment subspace together with p₄. Not orthogonalized "
+                "against the forced block; use frontier.frontier8_coordinates "
+                "for Dirichlet(1)-orthogonal directions. Status: exact."
             ),
         },
     ],
@@ -390,15 +394,20 @@ def enrichment_space(
     *,
     method: str = "auto",
 ) -> List[Dict[str, Any]]:
-    """Return basis for the enrichment (non-forced) part at *degree*.
+    """Return spanning monomials for the enrichment subspace at *degree*.
 
-    The enrichment space at a given degree consists of the new
-    symmetric-even harmonics that are orthogonal to the forced
-    block (Q_Δ, H_3) under the Dirichlet(1) measure.
+    Returns the raw power-sum monomials that span the degree-*degree*
+    enrichment subspace (the new symmetric-even harmonics beyond the
+    forced block). These monomials are **not** orthogonalized against
+    the forced block; they form a spanning set whose specific basis
+    vectors depend on convention.
 
-    At degree 8 with N ≥ 4, this returns 2 basis elements (E8_1, E8_2).
+    For Dirichlet(1)-orthogonalized enrichment coordinates, use
+    :func:`fisher_simplex.frontier.frontier8_coordinates`.
 
-    **Status:** exact for degree ≤ 8 (precomputed); experimental
+    At degree 8 with N >= 4, this returns 2 elements ({p_4, p_2^2}).
+
+    **Status:** exact for degree <= 8 (precomputed); experimental
     for higher degrees.
 
     Parameters
@@ -406,13 +415,13 @@ def enrichment_space(
     N : int
         Number of simplex components.
     degree : int
-        Harmonic degree (must be even, ≥ 8 for nontrivial enrichment).
+        Harmonic degree (must be even, >= 8 for nontrivial enrichment).
     method : {"precomputed", "algorithmic", "auto"}
         Basis construction method.
 
     Returns
     -------
     list of dict
-        Basis elements for the enrichment space at *degree*.
+        Spanning monomials for the enrichment subspace at *degree*.
     """
     return symmetric_even_basis(N, degree, method=method)

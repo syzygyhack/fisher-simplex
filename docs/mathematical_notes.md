@@ -199,7 +199,7 @@ At degree 8, the symmetric-even harmonic sector gains its first enrichment beyon
 
     dim_8 = P(4, N) - P(3, N)
 
-For N >= 4, this equals 2 (since P(4,4) - P(3,4) = 5 - 3 = 2). These two new directions are the degree-8 enrichment coordinates E8_1 and E8_2.
+For N >= 4, this equals 2 (since P(4,4) - P(3,4) = 5 - 3 = 2). The 2-dimensional enrichment *subspace* is canonical (determined by the representation theory), but any specific basis for it depends on the orthogonalization convention. The library's E8_1 and E8_2 are one such basis, produced by Gram-Schmidt orthogonalization of {p_4, p_2^2} against the forced block under the Dirichlet(1) inner product.
 
 ### Orthogonality condition
 

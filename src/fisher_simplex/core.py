@@ -66,8 +66,32 @@ def fisher_project(psi: ArrayLike) -> NDArray[np.floating]:
     -------
     ndarray
         Simplex composition(s), same shape as input.
+
+    Raises
+    ------
+    ValueError
+        If any element of *psi* is negative.
+
+    Warns
+    -----
+    UserWarning
+        If *psi* is not unit-norm (tolerance 1e-6).
     """
     psi = np.asarray(psi, dtype=np.float64)
+    if np.any(psi < 0):
+        raise ValueError(
+            "fisher_project requires nonnegative amplitudes (psi_i >= 0)."
+        )
+    norms = np.linalg.norm(psi, axis=-1)
+    if np.any(np.abs(norms - 1.0) > 1e-6):
+        import warnings
+
+        warnings.warn(
+            "fisher_project received non-unit-norm input "
+            f"(||psi|| deviates from 1 by up to {np.max(np.abs(norms - 1.0)):.2e}). "
+            "Results may not lie on the simplex.",
+            stacklevel=2,
+        )
     return psi**2
 
 
