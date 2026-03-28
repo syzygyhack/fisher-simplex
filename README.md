@@ -14,17 +14,21 @@ Need a different language than Python? `fisher-simplex` maintains a [SPEC.md](/S
 
 ## Installation
 
-Not yet published to PyPI. Install from source:
-
 ```bash
-git clone <repo-url> && cd fisher-simplex
-uv sync            # or: pip install -e .
+pip install fisher-simplex
 ```
 
 For visualization support:
 
 ```bash
-uv sync --extra viz   # or: pip install -e ".[viz]"
+pip install "fisher-simplex[viz]"
+```
+
+Or install from source:
+
+```bash
+git clone <repo-url> && cd fisher-simplex
+pip install -e ".[dev,viz]"
 ```
 
 ## Quick usage
