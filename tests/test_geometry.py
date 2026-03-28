@@ -6,7 +6,10 @@ import numpy as np
 import pytest
 
 from fisher_simplex.geometry import (
+    OnlineFisherMean,
+    WindowedFisherStats,
     bhattacharyya_coefficient,
+    cross_fisher_distances,
     fisher_barycenter,
     fisher_cosine,
     fisher_distance,
@@ -582,3 +585,181 @@ class TestBatchInputValidation:
         x = np.array([0.2, 0.3, 0.5])
         with pytest.raises(ValueError, match="batch"):
             fisher_mean(x)
+
+
+# ---------------------------------------------------------------------------
+# OnlineFisherMean
+# ---------------------------------------------------------------------------
+
+
+class TestOnlineFisherMean:
+    """Tests for OnlineFisherMean incremental mean."""
+
+    def test_single_update(self) -> None:
+        """Single update: mean equals that single point."""
+        s = np.array([0.2, 0.3, 0.5])
+        ofm = OnlineFisherMean(3)
+        ofm.update(s)
+        np.testing.assert_allclose(ofm.mean.sum(), 1.0, atol=1e-12)
+        np.testing.assert_allclose(ofm.mean, s, atol=1e-12)
+        assert ofm.count == 1
+
+    def test_batch_update(self, rng: np.random.Generator) -> None:
+        """update_batch produces same result as sequential updates."""
+        X = random_simplex(4, 20, rng)
+        # Sequential
+        ofm1 = OnlineFisherMean(4)
+        for row in X:
+            ofm1.update(row)
+        # Batch
+        ofm2 = OnlineFisherMean(4)
+        ofm2.update_batch(X)
+        np.testing.assert_allclose(ofm1.mean, ofm2.mean, atol=1e-12)
+        assert ofm1.count == ofm2.count
+
+    def test_weighted_update(self) -> None:
+        """Weighted update skews mean toward heavier point."""
+        a = np.array([0.9, 0.05, 0.05])
+        b = np.array([0.05, 0.9, 0.05])
+        ofm = OnlineFisherMean(3)
+        ofm.update(a, weight=10.0)
+        ofm.update(b, weight=1.0)
+        # Mean should be closer to a
+        d_a = fisher_distance(ofm.mean, a)
+        d_b = fisher_distance(ofm.mean, b)
+        assert d_a < d_b
+
+    def test_reset(self) -> None:
+        """reset() clears state."""
+        ofm = OnlineFisherMean(3)
+        ofm.update(np.array([0.2, 0.3, 0.5]))
+        assert ofm.count == 1
+        ofm.reset()
+        assert ofm.count == 0
+
+    def test_equivalence_with_fisher_mean(self, rng: np.random.Generator) -> None:
+        """Online mean approximates batch fisher_mean for uniform weights."""
+        X = random_simplex(5, 50, rng)
+        ofm = OnlineFisherMean(5)
+        ofm.update_batch(X)
+        batch_m = fisher_mean(X)
+        np.testing.assert_allclose(ofm.mean, batch_m, atol=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# WindowedFisherStats
+# ---------------------------------------------------------------------------
+
+
+class TestWindowedFisherStats:
+    """Tests for WindowedFisherStats rolling statistics."""
+
+    def test_push_and_count(self) -> None:
+        """push increments count up to window size."""
+        wfs = WindowedFisherStats(3, window_size=5)
+        for i in range(3):
+            s = np.array([0.2 + 0.1 * i, 0.3, 0.5 - 0.1 * i])
+            s = s / s.sum()
+            wfs.push(s)
+        assert wfs.count == 3
+
+    def test_window_overflow(self) -> None:
+        """After filling window, count stays at window_size."""
+        wfs = WindowedFisherStats(3, window_size=3)
+        for i in range(10):
+            s = np.array([0.2 + 0.01 * i, 0.3, 0.5 - 0.01 * i])
+            s = s / s.sum()
+            wfs.push(s)
+        assert wfs.count == 3
+
+    def test_mean_valid_simplex(self, rng: np.random.Generator) -> None:
+        """mean is a valid simplex composition."""
+        X = random_simplex(4, 10, rng)
+        wfs = WindowedFisherStats(4, window_size=10)
+        wfs.push_batch(X)
+        m = wfs.mean
+        np.testing.assert_allclose(m.sum(), 1.0, atol=1e-12)
+        assert np.all(m >= -1e-15)
+
+    def test_dispersion_nonneg(self, rng: np.random.Generator) -> None:
+        """dispersion is nonnegative."""
+        X = random_simplex(4, 10, rng)
+        wfs = WindowedFisherStats(4, window_size=10)
+        wfs.push_batch(X)
+        assert wfs.dispersion >= 0
+
+    def test_forced_pair_mean_shape(self, rng: np.random.Generator) -> None:
+        """forced_pair_mean returns (2,) array."""
+        X = random_simplex(4, 10, rng)
+        wfs = WindowedFisherStats(4, window_size=10)
+        wfs.push_batch(X)
+        fp = wfs.forced_pair_mean
+        assert fp.shape == (2,)
+
+    def test_shift_from(self, rng: np.random.Generator) -> None:
+        """shift_from returns a nonneg scalar."""
+        X = random_simplex(4, 10, rng)
+        wfs = WindowedFisherStats(4, window_size=10)
+        wfs.push_batch(X)
+        ref = random_simplex(4, 1, rng)[0]
+        shift = wfs.shift_from(ref)
+        assert np.isscalar(shift) or shift.ndim == 0
+        assert shift >= 0
+
+    def test_push_batch(self, rng: np.random.Generator) -> None:
+        """push_batch produces same state as sequential pushes."""
+        X = random_simplex(3, 5, rng)
+        wfs1 = WindowedFisherStats(3, window_size=5)
+        for row in X:
+            wfs1.push(row)
+        wfs2 = WindowedFisherStats(3, window_size=5)
+        wfs2.push_batch(X)
+        np.testing.assert_allclose(wfs1.mean, wfs2.mean, atol=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# cross_fisher_distances
+# ---------------------------------------------------------------------------
+
+
+class TestCrossFisherDistances:
+    """Tests for cross_fisher_distances between two clouds."""
+
+    def test_shape(self, rng: np.random.Generator) -> None:
+        """Returns (M, K) distance matrix."""
+        X = random_simplex(4, 5, rng)
+        Y = random_simplex(4, 8, rng)
+        D = cross_fisher_distances(X, Y)
+        assert D.shape == (5, 8)
+
+    def test_symmetry(self, rng: np.random.Generator) -> None:
+        """D(X, Y)[i, j] == D(Y, X)[j, i]."""
+        X = random_simplex(4, 5, rng)
+        Y = random_simplex(4, 3, rng)
+        D_xy = cross_fisher_distances(X, Y)
+        D_yx = cross_fisher_distances(Y, X)
+        np.testing.assert_allclose(D_xy, D_yx.T, atol=1e-12)
+
+    def test_zero_distance_identical(self, rng: np.random.Generator) -> None:
+        """Distance to self is zero."""
+        X = random_simplex(4, 5, rng)
+        D = cross_fisher_distances(X, X)
+        np.testing.assert_allclose(np.diag(D), 0.0, atol=1e-7)
+
+    def test_nonneg(self, rng: np.random.Generator) -> None:
+        """All distances are nonnegative."""
+        X = random_simplex(4, 5, rng)
+        Y = random_simplex(4, 3, rng)
+        D = cross_fisher_distances(X, Y)
+        assert np.all(D >= -1e-15)
+
+    def test_matches_pairwise(self, rng: np.random.Generator) -> None:
+        """cross_fisher_distances(X, X) matches pairwise_fisher_distances(X).
+
+        Note: pairwise_fisher_distances forces exact zero diagonal and
+        symmetry, so we use atol=1e-7 (same as G1 self-distance tolerance).
+        """
+        X = random_simplex(4, 6, rng)
+        D_cross = cross_fisher_distances(X, X)
+        D_pair = pairwise_fisher_distances(X)
+        np.testing.assert_allclose(D_cross, D_pair, atol=1e-7)

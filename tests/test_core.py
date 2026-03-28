@@ -25,6 +25,7 @@ from fisher_simplex.core import (
     qh_ratio,
     shannon_entropy,
     simpson_index,
+    topk_to_simplex,
 )
 from tests.conftest import random_simplex, uniform_simplex, vertex_simplex
 
@@ -357,3 +358,99 @@ class TestFisherProjectContract:
             warnings.simplefilter("error")
             result = fisher_project(lifted)
         np.testing.assert_allclose(result, samples, atol=1e-14)
+
+
+# ---------------------------------------------------------------------------
+# topk_to_simplex
+# ---------------------------------------------------------------------------
+
+
+class TestTopkToSimplex:
+    """Tests for topk_to_simplex."""
+
+    def test_single_remainder_basic(self) -> None:
+        """single_remainder appends residual bin, shape (K+1,)."""
+        values = np.array([0.5, 0.3])
+        result = topk_to_simplex(values, mode="single_remainder")
+        assert result.shape == (3,)
+        np.testing.assert_allclose(result[:2], values)
+        np.testing.assert_allclose(result[2], 0.2)
+        np.testing.assert_allclose(result.sum(), 1.0, atol=1e-14)
+
+    def test_renormalize_basic(self) -> None:
+        """renormalize mode rescales to sum=1, shape (K,)."""
+        values = np.array([0.4, 0.2])
+        result = topk_to_simplex(values, mode="renormalize")
+        assert result.shape == (2,)
+        np.testing.assert_allclose(result.sum(), 1.0, atol=1e-14)
+        # Ratios preserved
+        np.testing.assert_allclose(result[0] / result[1], 2.0, atol=1e-14)
+
+    def test_known_tail_basic(self) -> None:
+        """known_tail distributes residual across tail bins."""
+        values = np.array([0.5, 0.3])
+        result = topk_to_simplex(values, mode="known_tail", tail_cardinality=3)
+        assert result.shape == (5,)  # K=2 + tail=3
+        np.testing.assert_allclose(result[:2], values)
+        # Residual 0.2 split across 3 bins
+        np.testing.assert_allclose(result[2:], 0.2 / 3, atol=1e-14)
+        np.testing.assert_allclose(result.sum(), 1.0, atol=1e-14)
+
+    def test_batched_single_remainder(self) -> None:
+        """Batched input (..., K) -> (..., K+1)."""
+        values = np.array([[0.5, 0.3], [0.4, 0.4]])
+        result = topk_to_simplex(values, mode="single_remainder")
+        assert result.shape == (2, 3)
+        np.testing.assert_allclose(result.sum(axis=-1), 1.0, atol=1e-14)
+
+    def test_batched_renormalize(self) -> None:
+        """Batched renormalize preserves shape (..., K)."""
+        values = np.array([[0.4, 0.2], [0.6, 0.1]])
+        result = topk_to_simplex(values, mode="renormalize")
+        assert result.shape == (2, 2)
+        np.testing.assert_allclose(result.sum(axis=-1), 1.0, atol=1e-14)
+
+    def test_batched_known_tail(self) -> None:
+        """Batched known_tail produces shape (..., K + tail_cardinality)."""
+        values = np.array([[0.5, 0.3], [0.4, 0.4]])
+        result = topk_to_simplex(values, mode="known_tail", tail_cardinality=2)
+        assert result.shape == (2, 4)
+        np.testing.assert_allclose(result.sum(axis=-1), 1.0, atol=1e-14)
+
+    def test_sum_equals_one_single_remainder(self) -> None:
+        """When sum(values)=1, remainder is 0."""
+        values = np.array([0.6, 0.4])
+        result = topk_to_simplex(values, mode="single_remainder")
+        assert result.shape == (3,)
+        np.testing.assert_allclose(result[2], 0.0, atol=1e-14)
+        np.testing.assert_allclose(result.sum(), 1.0, atol=1e-14)
+
+    def test_negative_values_raises(self) -> None:
+        """Negative values raise ValueError."""
+        values = np.array([0.5, -0.1])
+        with pytest.raises(ValueError, match="[Nn]on-negative|[Nn]egative"):
+            topk_to_simplex(values, mode="single_remainder")
+
+    def test_sum_exceeds_one_raises(self) -> None:
+        """Values summing > 1 raise ValueError for remainder modes."""
+        values = np.array([0.6, 0.5])
+        with pytest.raises(ValueError, match="[Ss]um|[Ee]xceed"):
+            topk_to_simplex(values, mode="single_remainder")
+
+    def test_sum_exceeds_one_known_tail_raises(self) -> None:
+        """Values summing > 1 raise ValueError for known_tail mode."""
+        values = np.array([0.6, 0.5])
+        with pytest.raises(ValueError, match="[Ss]um|[Ee]xceed"):
+            topk_to_simplex(values, mode="known_tail", tail_cardinality=2)
+
+    def test_renormalize_allows_any_sum(self) -> None:
+        """renormalize mode works even if sum > 1 (just renormalizes)."""
+        values = np.array([0.6, 0.5])
+        result = topk_to_simplex(values, mode="renormalize")
+        np.testing.assert_allclose(result.sum(), 1.0, atol=1e-14)
+
+    def test_unknown_mode_raises(self) -> None:
+        """Unknown mode raises ValueError."""
+        values = np.array([0.5, 0.3])
+        with pytest.raises(ValueError, match="[Mm]ode"):
+            topk_to_simplex(values, mode="invalid")

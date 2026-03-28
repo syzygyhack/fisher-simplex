@@ -1,6 +1,6 @@
 """Fisher-Simplex: canonical simplex geometry via the Fisher amplitude lift."""
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from fisher_simplex.analysis import (
     batch_diagnostic,
@@ -34,6 +34,7 @@ from fisher_simplex.core import (
     qh_ratio,
     shannon_entropy,
     simpson_index,
+    topk_to_simplex,
 )
 from fisher_simplex.generators import (
     broken_stick,
@@ -44,7 +45,10 @@ from fisher_simplex.generators import (
     portfolio_weights,
 )
 from fisher_simplex.geometry import (
+    OnlineFisherMean,
+    WindowedFisherStats,
     bhattacharyya_coefficient,
+    cross_fisher_distances,
     fisher_barycenter,
     fisher_cosine,
     fisher_distance,
@@ -95,6 +99,8 @@ __all__ = [
     # core — binary helpers
     "binary_overlap",
     "binary_fisher_angle",
+    # core — top-k
+    "topk_to_simplex",
     # geometry — distances and coefficients
     "bhattacharyya_coefficient",
     "hellinger_distance",
@@ -121,6 +127,10 @@ __all__ = [
     # geometry — utility
     "sample_near",
     "perturb_simplex",
+    # geometry — online/windowed
+    "OnlineFisherMean",
+    "WindowedFisherStats",
+    "cross_fisher_distances",
     # analysis
     "batch_diagnostic",
     "full_diagnostic",

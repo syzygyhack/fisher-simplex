@@ -477,3 +477,74 @@ def binary_fisher_angle(x: ArrayLike) -> NDArray[np.floating]:
     """
     x = np.asarray(x, dtype=np.float64)
     return 2.0 * np.arccos(np.sqrt(x))
+
+
+# ---------------------------------------------------------------------------
+# Top-k to simplex
+# ---------------------------------------------------------------------------
+
+
+def topk_to_simplex(
+    values: ArrayLike,
+    *,
+    mode: str = "single_remainder",
+    tail_cardinality: int | None = None,
+) -> NDArray[np.floating]:
+    """Construct a simplex vector from top-k probabilities.
+
+    Parameters
+    ----------
+    values : array_like
+        Non-negative top-k probability values of shape ``(..., K)``.
+    mode : {"single_remainder", "renormalize", "known_tail"}, optional
+        How to handle the residual mass. Default ``"single_remainder"``.
+
+        - ``"single_remainder"``: append one bin for residual ``1 - sum``.
+          Output shape ``(..., K+1)``.
+        - ``"renormalize"``: renormalize to sum to 1. Output shape ``(..., K)``.
+        - ``"known_tail"``: distribute residual across *tail_cardinality* bins.
+          Output shape ``(..., K + tail_cardinality)``.
+
+    tail_cardinality : int or None, optional
+        Number of tail bins for ``"known_tail"`` mode.
+
+    Returns
+    -------
+    ndarray
+        Simplex composition(s).
+
+    Raises
+    ------
+    ValueError
+        If values are negative, sum exceeds 1 (for remainder modes),
+        or mode is unknown.
+    """
+    values = np.asarray(values, dtype=np.float64)
+
+    if np.any(values < 0):
+        raise ValueError("Values must be non-negative.")
+
+    if mode == "renormalize":
+        total = np.sum(values, axis=-1, keepdims=True)
+        return values / total
+
+    s = np.sum(values, axis=-1)
+    if np.any(s > 1.0 + 1e-10):
+        raise ValueError("Sum of values exceeds 1.")
+
+    if mode == "single_remainder":
+        remainder = np.maximum(1.0 - s, 0.0)
+        return np.concatenate(
+            [values, remainder[..., np.newaxis]], axis=-1
+        )
+
+    if mode == "known_tail":
+        if tail_cardinality is None:
+            raise ValueError("known_tail mode requires tail_cardinality.")
+        remainder = np.maximum(1.0 - s, 0.0)
+        per_bin = remainder / tail_cardinality
+        tail_shape = values.shape[:-1] + (tail_cardinality,)
+        tail = np.broadcast_to(per_bin[..., np.newaxis], tail_shape)
+        return np.concatenate([values, tail], axis=-1)
+
+    raise ValueError(f"Unknown mode: {mode!r}")

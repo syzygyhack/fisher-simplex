@@ -12,7 +12,7 @@ from typing import Tuple
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from fisher_simplex.core import fisher_lift, fisher_project
+from fisher_simplex.core import fisher_lift, fisher_project, forced_pair
 from fisher_simplex.utils import (  # noqa: F401
     closure,
     project_to_simplex,
@@ -791,3 +791,226 @@ def perturb_simplex(
         return perturbed
 
     raise ValueError(f"Unknown mode: {mode!r}")
+
+
+# ---------------------------------------------------------------------------
+# Online and windowed statistics
+# ---------------------------------------------------------------------------
+
+
+class OnlineFisherMean:
+    """Incremental extrinsic Fisher mean via running amplitude average.
+
+    Maintains a running weighted arithmetic mean in amplitude (sqrt) space
+    and projects back to the simplex on query. Memory: O(N).
+
+    Parameters
+    ----------
+    n_components : int
+        Dimensionality of the simplex (number of bins).
+    """
+
+    def __init__(self, n_components: int) -> None:
+        self._n = n_components
+        self._amp_sum = np.zeros(n_components, dtype=np.float64)
+        self._weight_sum = 0.0
+        self._count = 0
+
+    def update(self, s: ArrayLike, weight: float = 1.0) -> None:
+        """Add a single simplex composition to the running mean.
+
+        Parameters
+        ----------
+        s : array_like
+            Simplex composition of shape ``(N,)``.
+        weight : float, optional
+            Non-negative weight. Default 1.0.
+        """
+        s = _validated(s)
+        amp = fisher_lift(s)
+        self._amp_sum += weight * amp
+        self._weight_sum += weight
+        self._count += 1
+
+    def update_batch(self, X: ArrayLike, weights: ArrayLike | None = None) -> None:
+        """Add a batch of simplex compositions.
+
+        Parameters
+        ----------
+        X : array_like
+            Simplex compositions of shape ``(M, N)``.
+        weights : array_like or None, optional
+            Non-negative weights of shape ``(M,)``. Default uniform.
+        """
+        X = _validated(X)
+        X = _require_batch(X, "OnlineFisherMean.update_batch")
+        amps = fisher_lift(X)
+        m = X.shape[0]
+        if weights is not None:
+            w = np.asarray(weights, dtype=np.float64)
+            self._amp_sum += np.einsum("i,ij->j", w, amps)
+            self._weight_sum += w.sum()
+        else:
+            self._amp_sum += amps.sum(axis=0)
+            self._weight_sum += m
+        self._count += m
+
+    @property
+    def mean(self) -> NDArray[np.floating]:
+        """Current extrinsic Fisher mean projected to the simplex."""
+        if self._weight_sum <= 0:
+            return np.full(self._n, 1.0 / self._n)
+        avg = self._amp_sum / self._weight_sum
+        norm = np.linalg.norm(avg)
+        if norm < 1e-30:
+            return np.full(self._n, 1.0 / self._n)
+        avg = avg / norm
+        return fisher_project(avg)
+
+    @property
+    def count(self) -> int:
+        """Number of compositions seen."""
+        return self._count
+
+    def reset(self) -> None:
+        """Clear all accumulated state."""
+        self._amp_sum[:] = 0.0
+        self._weight_sum = 0.0
+        self._count = 0
+
+
+class WindowedFisherStats:
+    """Rolling Fisher-geometric statistics over a fixed-size circular buffer.
+
+    Memory: O(window_size * N).
+
+    Parameters
+    ----------
+    n_components : int
+        Dimensionality of the simplex (number of bins).
+    window_size : int
+        Maximum number of compositions to keep.
+    """
+
+    def __init__(self, n_components: int, window_size: int) -> None:
+        self._n = n_components
+        self._window_size = window_size
+        self._buffer = np.zeros((window_size, n_components), dtype=np.float64)
+        self._pos = 0
+        self._count = 0
+
+    def push(self, s: ArrayLike) -> None:
+        """Add a single simplex composition.
+
+        Parameters
+        ----------
+        s : array_like
+            Simplex composition of shape ``(N,)``.
+        """
+        s = _validated(s)
+        self._buffer[self._pos % self._window_size] = s
+        self._pos += 1
+        self._count = min(self._count + 1, self._window_size)
+
+    def push_batch(self, X: ArrayLike) -> None:
+        """Add a batch of simplex compositions.
+
+        Parameters
+        ----------
+        X : array_like
+            Simplex compositions of shape ``(M, N)``.
+        """
+        X = _validated(X)
+        X = _require_batch(X, "WindowedFisherStats.push_batch")
+        for row in X:
+            self.push(row)
+
+    def _active(self) -> NDArray[np.floating]:
+        """Return the active portion of the buffer."""
+        if self._count < self._window_size:
+            return self._buffer[: self._count]
+        return self._buffer
+
+    @property
+    def mean(self) -> NDArray[np.floating]:
+        """Extrinsic Fisher mean of the window contents."""
+        buf = self._active()
+        if buf.shape[0] == 0:
+            return np.full(self._n, 1.0 / self._n)
+        return fisher_mean(buf)
+
+    @property
+    def dispersion(self) -> float:
+        """Mean pairwise Fisher distance within the window."""
+        buf = self._active()
+        if buf.shape[0] < 2:
+            return 0.0
+        D = pairwise_fisher_distances(buf)
+        m = buf.shape[0]
+        return float(D.sum() / (m * (m - 1)))
+
+    @property
+    def forced_pair_mean(self) -> NDArray[np.floating]:
+        """Mean forced-pair coordinates [Q_delta, H_3] over the window."""
+        buf = self._active()
+        if buf.shape[0] == 0:
+            return np.zeros(2)
+        q_vals, h_vals = forced_pair(buf)
+        return np.array([q_vals.mean(), h_vals.mean()])
+
+    @property
+    def count(self) -> int:
+        """Number of compositions in the window."""
+        return self._count
+
+    def shift_from(self, reference: ArrayLike) -> float:
+        """Fisher distance from *reference* to the window mean.
+
+        Parameters
+        ----------
+        reference : array_like
+            Simplex composition of shape ``(N,)``.
+
+        Returns
+        -------
+        float
+            Fisher geodesic distance.
+        """
+        reference = _validated(reference)
+        m = self.mean
+        return float(fisher_distance(m, reference))
+
+
+# ---------------------------------------------------------------------------
+# Cross-cloud distances
+# ---------------------------------------------------------------------------
+
+
+def cross_fisher_distances(
+    X: ArrayLike,
+    Y: ArrayLike,
+) -> NDArray[np.floating]:
+    """Pairwise Fisher distances between two clouds.
+
+    Parameters
+    ----------
+    X : array_like
+        Simplex compositions of shape ``(M, N)``.
+    Y : array_like
+        Simplex compositions of shape ``(K, N)``.
+
+    Returns
+    -------
+    ndarray
+        Shape ``(M, K)`` distance matrix.
+    """
+    X = _validated(X)
+    Y = _validated(Y)
+    X = _require_batch(X, "cross_fisher_distances X")
+    Y = _require_batch(Y, "cross_fisher_distances Y")
+    psi_x = fisher_lift(X)  # (M, N)
+    psi_y = fisher_lift(Y)  # (K, N)
+    bc = psi_x @ psi_y.T  # (M, K)
+    bc = np.clip(bc, -1.0, 1.0)
+    D = 2.0 * np.arccos(bc)
+    return D
