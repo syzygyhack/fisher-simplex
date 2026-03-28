@@ -256,7 +256,6 @@ class TestHarmonicFrontierConsistency:
         """frontier E8 coordinates are orthogonal to Q_delta and H_3
         under Dirichlet(1) — confirming frontier does the orthogonalization
         that harmonic does not."""
-        from fisher_simplex.core import h3, q_delta
         from fisher_simplex.frontier import frontier8_coordinates
 
         rng = np.random.default_rng(seed=9999)

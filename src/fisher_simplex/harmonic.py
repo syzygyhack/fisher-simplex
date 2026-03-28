@@ -377,8 +377,10 @@ def selective_frontier(N: int) -> Dict[str, Any]:
             f"First selective frontier at degree 8 for N={N}. "
             f"The forced block (Q_Δ, H_3) spans {forced} dimensions "
             f"through degree 6. At degree 8, {enrichment} new "
-            f"enrichment dimension(s) appear, orthogonal to the "
-            f"forced block under the Dirichlet(1) measure."
+            f"enrichment dimension(s) appear (subspace canonical; "
+            f"specific basis depends on orthogonalization convention). "
+            f"See frontier.frontier8_coordinates for Dirichlet(1)-"
+            f"orthogonal directions."
         ),
     }
 

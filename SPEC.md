@@ -416,11 +416,11 @@ Documentation must state:
 Status: **engineering utility**.
 
 ```python
-project_to_simplex(x) -> ndarray                        # Euclidean projection
-closure(x) -> ndarray                                   # proportional normalization
 sample_near(s, *, scale, geometry="fisher", rng=None) -> ndarray
 perturb_simplex(s, *, eps, mode="fisher", rng=None) -> ndarray
 ```
+
+`project_to_simplex` and `closure` live in the `utils` module and are re-exported from `geometry` for convenience. `sample_near` and `perturb_simplex` are geometry-native.
 
 These are convenience functions, not theorem-level exports.
 
@@ -576,7 +576,7 @@ Returns a 4-vector: `[Q_Δ, H_3, E8_1, E8_2]` where `E8_1` and `E8_2` are the tw
 
 Implementation guidance:
 
-* v0.3 ships precomputed symbolic expressions for the degree-8 basis.
+* v0.3 computes exact degree-8 enrichment coefficients via Gram-Schmidt orthogonalization of Dirichlet(1) moments at runtime, cached per N with `lru_cache`.
 * Explicit polynomial expressions documented in the mathematical notes.
 * Higher-degree generalization belongs in `harmonic`.
 
@@ -677,7 +677,7 @@ project_to_simplex(x) -> ndarray
 closure(x) -> ndarray
 ```
 
-`validate_simplex` is also re-exported from `core` for convenience.
+`validate_simplex` is used internally by `core` and re-exported at the top level from `utils`.
 
 ---
 
@@ -770,7 +770,7 @@ The test matrix distinguishes four categories.
 
 | ID | Test | Assertion |
 |----|------|-----------|
-| R1 | p₄ = Σs⁴ in forced block | R² > 0.999 against (Q_Δ, H_3) at N = 5, 10, 20 |
+| R1 | p₄ = Σs⁴ near-forced empirically | R² > 0.999 against (Q_Δ, H_3) at N = 5, 10, 20 (p₄ has a degree-8 enrichment component, but its variance is dominated by the forced block) |
 | R2 | p₅ = Σs⁵ beyond forced block | R²(p₅) < R²(p₄) at N = 30 |
 | R3 | Degree-8 improvement | frontier8_residual shows R²_frontier > R²_forced for a degree-8 target |
 
@@ -857,21 +857,9 @@ No compiled extensions required.
 
 ## 10. Roadmap
 
-### Phase 1 — v0.3 core release
+### Shipped in v0.3
 
-Ship: `core`, `geometry`, `analysis`, `generators`, `utils`, basic tests, basic docs.
-
-### Phase 2 — v0.4 analysis and visualization
-
-Ship: `viz`, richer reports, tutorial notebooks, benchmark examples.
-
-### Phase 3 — v0.5 frontier tools
-
-Ship: `frontier`, degree-8 coordinates, frontier residual diagnostics.
-
-### Phase 4 — v0.6 harmonic experimental layer
-
-Ship: low-degree exact bases through degree 8, experimental higher-degree basis construction.
+All core modules are implemented: `core`, `geometry`, `analysis`, `generators`, `utils`, `viz`, `frontier`, `harmonic`. Tests, docs, and example scripts are in place.
 
 ### Phase 5 — real-data validation
 
