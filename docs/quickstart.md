@@ -81,4 +81,4 @@ print(report['recommendation'])
 
 ---
 
-For deeper workflows, see the [user guide](user_guide.md). For mathematical background, see the [mathematical notes](mathematical_notes.md).
+For deeper workflows — tangent PCA, kernel methods, distributional shift, degree-8 frontier tools, and mechanistic interpretability (chart discovery, shared modes) — see the [user guide](user_guide.md). For mathematical background, see the [mathematical notes](mathematical_notes.md).

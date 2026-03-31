@@ -237,6 +237,57 @@ composition = fs.closure(counts)
 diag = fs.full_diagnostic(composition)
 ```
 
+## Top-k to simplex
+
+When working with LLM logprob outputs or other top-k data, `topk_to_simplex` converts truncated probability vectors into valid simplex compositions:
+
+```python
+import numpy as np
+import fisher_simplex as fs
+
+# Top-5 probabilities from a language model
+topk = np.array([0.35, 0.25, 0.15, 0.10, 0.05])
+
+# Default: append one tail bin for residual mass
+full = fs.topk_to_simplex(topk)  # shape (6,), sums to 1
+print(f"With tail bin: {full}")   # [..., 0.10]
+
+# Renormalize to sum to 1 (discard tail)
+renorm = fs.topk_to_simplex(topk, mode="renormalize")  # shape (5,)
+
+# Distribute tail across known vocabulary size
+vocab = fs.topk_to_simplex(topk, mode="known_tail", tail_cardinality=100)
+```
+
+Batched input is supported: pass shape `(M, K)` and get shape `(M, K+1)` (or `(M, K)` for renormalize mode).
+
+## Online and windowed statistics
+
+For streaming data, two classes provide incremental Fisher-geometric statistics without storing the full dataset:
+
+```python
+import fisher_simplex as fs
+
+# Online mean: O(N) memory, processes one composition at a time
+online = fs.OnlineFisherMean(n_components=5)
+for s in data_stream:
+    online.update(s)
+print(f"Running mean: {online.mean}")
+print(f"Seen: {online.count}")
+
+# Windowed stats: rolling window for drift detection
+window = fs.WindowedFisherStats(n_components=5, window_size=100)
+window.push_batch(initial_data)
+baseline = window.mean.copy()
+
+# Later, after new data arrives:
+window.push_batch(new_data)
+shift = window.shift_from(baseline)
+print(f"Fisher shift from baseline: {shift:.4f}")
+print(f"Window dispersion: {window.dispersion:.4f}")
+print(f"Mean forced pair: {window.forced_pair_mean}")
+```
+
 ## Frontier tools (experimental)
 
 The first genuinely free symmetric-even enrichment appears at degree 8. The frontier module exposes degree-8 coordinates orthogonal to (Q_delta, H_3) under the Dirichlet(1) measure.
@@ -253,4 +304,75 @@ result = frontier8_residual(cloud, target)
 print(f"R^2 forced: {result['r_squared_forced']:.4f}")
 print(f"R^2 frontier: {result['r_squared_frontier']:.4f}")
 print(f"Needs frontier: {result['needs_frontier']}")
+```
+
+## Interpretability tools (experimental)
+
+The `interp` module provides geometric tools for analyzing ensembles of simplex compositions, such as transformer attention distributions across heads and prompts.
+
+```python
+from fisher_simplex.interp import (
+    mean_overlap_matrix, discover_charts,
+    extract_shared_modes, project_to_modes,
+)
+```
+
+### Chart discovery
+
+Entities (e.g. attention heads) are grouped into "charts" based on Bhattacharyya overlap of their output distributions:
+
+```python
+import numpy as np
+
+# X_3d shape: (n_heads, n_prompts, seq_len)
+# Each head produces a distribution over sequence positions per prompt.
+
+overlap = mean_overlap_matrix(X_3d)  # (n_heads, n_heads) averaged over prompts
+charts = discover_charts(overlap, tau=0.7)
+
+print(f"Found {charts['n_charts']} charts")
+for i, indices in enumerate(charts["charts"]):
+    print(f"  Chart {i}: heads {indices} (size {charts['sizes'][i]})")
+```
+
+Use `chart_stability` to verify charts are robust across conditions:
+
+```python
+from fisher_simplex.interp import chart_stability
+
+stability = chart_stability(X_3d, tau=0.7, min_fraction=0.7)
+print(f"Stable charts: {stability['n_stable_charts']}")
+# co_occurrence matrix shows how often pairs of heads cluster together
+```
+
+### Shared mode extraction
+
+Within a chart, extract the dominant shared variation modes via tangent-space SVD:
+
+```python
+chart_data = X_3d[charts["charts"][0]]  # subset to one chart
+modes = extract_shared_modes(chart_data, n_modes=3)
+
+print(f"Mean R^2 across entities: {modes['mean_r2']:.3f}")
+print(f"Dims for 90% variance: {modes['dim_90']}")
+print(f"Singular values: {modes['shared_singular_values']}")
+
+# Per-entity fit quality
+for i, r2 in enumerate(modes["per_entity_r2"]):
+    print(f"  Entity {i}: R^2 = {r2:.3f}")
+```
+
+### Projection and reconstruction
+
+Project individual compositions through the shared-mode basis:
+
+```python
+reconstructed = project_to_modes(
+    original_distribution,
+    centroid=modes["centroid"],
+    tangent_basis=modes["tangent_basis"],
+    shared_modes=modes["shared_modes"],
+    tangent_mean=modes["tangent_mean"],
+)
+# reconstructed is a valid simplex composition
 ```

@@ -141,12 +141,13 @@ This motivates the package's **experimental frontier tools**, which expose degre
 
 Modules:
 
-* `core` — scalar invariants, overlap families, forced pair, lift, bridge statistics
-* `geometry` — distances, geodesics, means, tangent maps, PCA, kernels
+* `core` — scalar invariants, overlap families, forced pair, lift, bridge statistics, top-k conversion
+* `geometry` — distances, geodesics, means, tangent maps, PCA, kernels, online/windowed statistics
 * `analysis` — batch diagnostics, divergence reports, forced-block analysis, concentration profiling
 * `generators` — synthetic reference ensembles
 * `frontier` — degree-8 enrichment coordinates and residual diagnostics (experimental)
 * `harmonic` — low-degree symmetric-even harmonic tools (experimental)
+* `interp` — mechanistic interpretability helpers: chart discovery, shared modes, projection (experimental)
 * `viz` — matplotlib plotting utilities (optional, requires matplotlib)
 * `utils` — validation, projection, perturbation utilities
 
@@ -206,7 +207,8 @@ Definitions:
 Notes:
 
 * Code names are lowercase ASCII; documentation uses Φ_N, Ψ_N.
-* `psi` uses log-sum-exp internally for numerical stability.
+* `psi_overlap` is the full name; `psi` is an alias: `psi = psi_overlap`.
+* `psi` / `psi_overlap` uses log-sum-exp internally for numerical stability.
 
 #### 4.1.3 Forced-pair invariants
 
@@ -275,7 +277,29 @@ effective_number_shannon(s, *, base=None) -> ndarray  # exp(H)
 
 Purpose: interoperability with existing literature and baseline comparisons.
 
-#### 4.1.7 Binary special-case helpers
+#### 4.1.7 Top-k to simplex conversion
+
+Status: **exact-derived utility**.
+
+```python
+topk_to_simplex(values, *, mode="single_remainder", tail_cardinality=None) -> ndarray
+```
+
+Constructs valid simplex vectors from top-k probability outputs (e.g. LLM logprobs).
+
+Available modes:
+
+* `"single_remainder"` — append one tail bin for `1 - sum(top_k)`. Output shape `(..., K+1)`.
+* `"renormalize"` — renormalize top-k values to sum to 1. Output shape `(..., K)`.
+* `"known_tail"` — distribute residual uniformly across `tail_cardinality` bins. Output shape `(..., K + tail_cardinality)`.
+
+Requirements:
+
+* Values must be non-negative.
+* For remainder modes, `sum(top_k) <= 1` (raises `ValueError` otherwise).
+* Accepts batched input with shape `(..., K)`.
+
+#### 4.1.8 Binary special-case helpers
 
 Status: **exact**, pedagogical/testing. Not headlined.
 
@@ -423,6 +447,35 @@ perturb_simplex(s, *, eps, mode="fisher", rng=None) -> ndarray
 `project_to_simplex` and `closure` live in the `utils` module and are re-exported from `geometry` for convenience. `sample_near` and `perturb_simplex` are geometry-native.
 
 These are convenience functions, not theorem-level exports.
+
+#### 4.2.8 Online and windowed statistics
+
+Status: **exact-derived utility**.
+
+```python
+OnlineFisherMean(n_components)           # class
+WindowedFisherStats(n_components, window_size)  # class
+```
+
+`OnlineFisherMean` maintains a running weighted arithmetic mean in amplitude space and projects back to the simplex on query. Memory: O(N).
+
+Methods: `update(s, weight=1.0)`, `update_batch(X, weights=None)`, `reset()`.
+Properties: `mean` (current Fisher mean), `count`.
+
+`WindowedFisherStats` maintains a fixed-size circular buffer of recent simplex compositions, computing rolling Fisher-geometric statistics.
+
+Methods: `push(s)`, `push_batch(X)`, `shift_from(reference)`.
+Properties: `mean` (Fisher mean of window), `dispersion` (mean pairwise Fisher distance within window), `forced_pair_mean` (mean [Q_delta, H_3] over window), `count`.
+
+#### 4.2.9 Cross-cloud distances
+
+Status: **exact**.
+
+```python
+cross_fisher_distances(X, Y) -> ndarray   # shape (M, K)
+```
+
+Pairwise Fisher distances between two clouds of simplex compositions (shapes `(M, N)` and `(K, N)`). Returns shape `(M, K)`.
 
 ---
 
@@ -681,6 +734,98 @@ closure(x) -> ndarray
 
 ---
 
+### 4.9 Module: `interp` (experimental)
+
+Mechanistic interpretability helpers for analyzing ensembles of simplex compositions (e.g. transformer attention distributions across heads and prompts).
+
+Not re-exported at the top level. Import as `from fisher_simplex.interp import ...`.
+
+#### 4.9.1 Scope
+
+This module provides geometric tools for:
+
+* Computing pairwise Bhattacharyya overlap between entities.
+* Discovering clusters ("charts") of entities with similar distributional geometry.
+* Extracting shared variation modes across entities via tangent-space SVD.
+* Projecting / reconstructing compositions through the shared-mode basis.
+
+The 3D array convention is `(n_entities, n_conditions, N)` — e.g. (heads, prompts, seq_len) for transformer attention.
+
+#### 4.9.2 Overlap and chart discovery
+
+Status: **experimental**.
+
+```python
+overlap_matrix(X) -> ndarray                # (M, M) Bhattacharyya coefficient matrix
+mean_overlap_matrix(X_3d) -> ndarray        # (n_entities, n_entities) averaged over conditions
+discover_charts(overlap, *, tau=0.7) -> dict
+chart_stability(X_3d, *, tau=0.7, min_fraction=0.7) -> dict
+```
+
+`overlap_matrix(X)` computes the pairwise Bhattacharyya coefficient matrix for compositions of shape `(M, N)`. Diagonal entries are 1.0.
+
+`mean_overlap_matrix(X_3d)` accepts shape `(n_entities, n_conditions, N)`, computes an overlap matrix per condition, and averages. This captures entity-level similarity across all conditions.
+
+`discover_charts(overlap, tau=0.7)` thresholds the overlap matrix at `tau`, then finds connected components via `scipy.sparse.csgraph.connected_components`. Returns:
+
+* `"n_charts"` — number of connected components.
+* `"labels"` — integer array of shape `(n_entities,)`.
+* `"charts"` — list of index arrays, one per chart.
+* `"sizes"` — list of chart sizes.
+
+`chart_stability(X_3d, tau=0.7, min_fraction=0.7)` runs `discover_charts` per condition, builds a co-occurrence matrix, and identifies stable groupings. Returns:
+
+* `"co_occurrence"` — `(n_entities, n_entities)` co-occurrence frequency matrix.
+* `"stable_labels"` — integer array of stable chart assignments.
+* `"n_stable_charts"` — number of stable charts.
+* `"per_condition_labels"` — `(n_conditions, n_entities)` labels per condition.
+
+#### 4.9.3 Shared mode extraction
+
+Status: **experimental**.
+
+```python
+extract_shared_modes(X_3d, *, centroid=None, n_modes=3, tangent_dim=None) -> dict
+```
+
+Extracts shared variation modes from 3D attention data via Riemannian tangent-space analysis:
+
+1. Compute or accept a Fisher mean centroid.
+2. Log-map all compositions to tangent space at the centroid.
+3. PCA of tangent vectors → tangent basis.
+4. Project per-entity trajectories into tangent PCA space.
+5. Center per-entity trajectories (remove head effects).
+6. SVD of concatenated centered trajectories → shared modes.
+7. Compute per-entity R² (fraction of variance explained by shared modes).
+
+Returns:
+
+* `"centroid"` — Fisher mean of all data, shape `(N,)`.
+* `"tangent_mean"` — mean tangent vector, shape `(tangent_dim,)`.
+* `"tangent_basis"` — PCA components, shape `(tangent_dim, N)`.
+* `"shared_modes"` — shape `(n_modes, tangent_dim)`.
+* `"shared_singular_values"` — shape `(n_modes,)`.
+* `"head_effects"` — per-entity mean offsets, shape `(n_entities, tangent_dim)`.
+* `"per_entity_r2"` — shape `(n_entities,)`.
+* `"mean_r2"` — float.
+* `"dim_90"`, `"dim_95"` — int, dimensions for 90%/95% shared variance.
+* `"tangent_singular_values"` — from initial PCA, shape `(tangent_dim,)`.
+
+#### 4.9.4 Projection and reconstruction
+
+Status: **experimental**.
+
+```python
+project_to_modes(s, *, centroid, tangent_basis, shared_modes,
+                 tangent_mean=None, n_modes=None, head_effect=None) -> ndarray
+```
+
+Projects simplex composition(s) through the shared-mode basis and reconstructs back to the simplex via `fisher_expmap`. Accepts shape `(N,)` or `(M, N)`.
+
+The workflow: logmap to tangent space → project to tangent PCA → subtract tangent mean and head effect → project onto shared modes → reconstruct → add back tangent mean and head effect → expmap back to simplex.
+
+---
+
 ## 5. Immediate applications
 
 Claims are deliberately conservative. Each application names what the library provides, what caution is warranted, and what a practical workflow looks like.
@@ -859,7 +1004,7 @@ No compiled extensions required.
 
 ### Shipped in v0.3
 
-All core modules are implemented: `core`, `geometry`, `analysis`, `generators`, `utils`, `viz`, `frontier`, `harmonic`. Tests, docs, and example scripts are in place.
+All core modules are implemented: `core`, `geometry`, `analysis`, `generators`, `utils`, `viz`, `frontier`, `harmonic`, `interp`. Tests, docs, and example scripts are in place.
 
 ### Phase 5 — real-data validation
 

@@ -1,6 +1,6 @@
 """Fisher-Simplex: canonical simplex geometry via the Fisher amplitude lift."""
 
-__version__ = "0.3.1"
+__version__ = "0.3.3"
 
 from fisher_simplex.analysis import (
     batch_diagnostic,
@@ -72,7 +72,8 @@ from fisher_simplex.geometry import (
 from fisher_simplex.utils import closure, project_to_simplex, validate_simplex
 
 # Optional modules — available via fisher_simplex.frontier, fisher_simplex.harmonic,
-# fisher_simplex.viz. Not re-exported at top level to avoid optional dependency issues.
+# fisher_simplex.viz, fisher_simplex.interp.
+# Not re-exported at top level to avoid cluttering the namespace.
 
 __all__ = [
     # core — overlap families

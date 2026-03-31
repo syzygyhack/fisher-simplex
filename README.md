@@ -74,6 +74,7 @@ print(f"Mean divergence: {report['mean_divergence']:.6f}")
 | `utils` | Validation, projection, closure | Engineering |
 | `frontier` | Degree-8 enrichment coordinates and residual diagnostics | Experimental |
 | `harmonic` | Low-degree symmetric-even harmonic tools | Experimental |
+| `interp` | Mechanistic interpretability: chart discovery, shared modes, projection | Experimental |
 | `viz` | Matplotlib plotting utilities (requires `matplotlib`) | Optional |
 
 ## Examples
@@ -88,6 +89,9 @@ The `examples/` directory contains runnable scripts demonstrating domain-specifi
 | `distributional_shift.py` | Machine learning | Shift detection between classifier output clouds |
 | `sparse_zeros.py` | Microbiome | Boundary-safe geometry on zero-inflated compositional data |
 | `frontier_enrichment.py` | Research | Degree-8 enrichment coordinates, residual diagnostics |
+| `frontier_discrimination.py` | Research | Frontier-based model discrimination |
+| `llm_token_geometry.py` | ML / LLMs | Top-k to simplex, frontier coordinates, drift detection |
+| `attention_atlas.md` | ML / Interpretability | Chart discovery, shared tangent modes, and replay validation for transformer attention heads |
 
 ## Documentation
 
